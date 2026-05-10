@@ -73,7 +73,7 @@ let currentSnapshot: SyncStatusSnapshot = initialSnapshot;
 const listeners: Set<SyncStatusListener> = new Set();
 
 export function getSyncStatusSnapshot(): SyncStatusSnapshot {
-  return copySnapshot(currentSnapshot);
+  return currentSnapshot;
 }
 
 export function subscribeSyncStatus(listener: SyncStatusListener): () => void {
@@ -152,20 +152,11 @@ export function resetSyncStatusStoreForTests(): void {
 }
 
 function publish(): SyncStatusSnapshot {
-  const snapshot = getSyncStatusSnapshot();
-
   listeners.forEach(listener => {
-    listener(snapshot);
+    listener(currentSnapshot);
   });
 
-  return snapshot;
-}
-
-function copySnapshot(snapshot: SyncStatusSnapshot): SyncStatusSnapshot {
-  return {
-    ...snapshot,
-    lastSummary: snapshot.lastSummary === null ? null : {...snapshot.lastSummary},
-  };
+  return currentSnapshot;
 }
 
 function readErrorMessage(error: unknown): string {
