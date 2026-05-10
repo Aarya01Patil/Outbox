@@ -1,7 +1,7 @@
 import type {Scalar} from '@op-engineering/op-sqlite';
 
 import {executeSync, queryOne, queryRows, runInImmediateTransaction} from '../db/database';
-import type {MessageRow, QueueStatsRow} from '../types/database';
+import type {QueueStatsRow} from '../types/database';
 import type {
   ServerMessageSnapshot,
 } from '../types/conflict';
@@ -112,6 +112,25 @@ export function getMessagesForSession(
       LIMIT ?;
     `,
     params,
+    mapMessageRow,
+  );
+}
+
+export function getAllMessagesForSession(
+  sessionId: string,
+  limit = DEFAULT_MAX_MESSAGES_PER_SESSION,
+): MessageRecord[] {
+  const boundedLimit = Math.max(1, Math.min(limit, DEFAULT_MAX_MESSAGES_PER_SESSION));
+
+  return queryRows(
+    `
+      SELECT *
+      FROM messages
+      WHERE session_id = ?
+      ORDER BY created_at_client DESC
+      LIMIT ?;
+    `,
+    [sessionId, boundedLimit],
     mapMessageRow,
   );
 }
@@ -351,6 +370,67 @@ export function retryMessage(input: RetryMessageInput): void {
     `,
     [now, now, input.clientId],
   );
+}
+
+export interface SeedMessagesInput {
+  sessionId: string;
+  senderId: string;
+  count: number;
+  now?: number;
+}
+
+export function seedMessagesForSession(input: SeedMessagesInput): number {
+  const now = input.now ?? Date.now();
+  const count = Math.max(1, Math.min(input.count, DEFAULT_MAX_MESSAGES_PER_SESSION));
+
+  runInImmediateTransaction(() => {
+    for (let index = 0; index < count; index += 1) {
+      const createdAt = now - (count - index) * 1_000;
+      const clientId = `seed_${input.sessionId}_${createdAt}_${index}`;
+      executeSync(
+        `
+          INSERT OR IGNORE INTO messages (
+            client_id,
+            server_id,
+            session_id,
+            sender_id,
+            body,
+            direction,
+            status,
+            priority,
+            idempotency_key,
+            retry_count,
+            next_attempt_at,
+            last_error,
+            created_at_client,
+            updated_at_client,
+            created_at_server,
+            updated_at_server,
+            server_version,
+            conflicted_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'normal', ?, 0, 0, NULL, ?, ?, ?, ?, 1, NULL);
+        `,
+        [
+          clientId,
+          `srv_${clientId}`,
+          input.sessionId,
+          input.senderId,
+          `Seed message ${index + 1}`,
+          index % 5 === 0 ? 'incoming' : 'outgoing',
+          'sent',
+          `seed:${clientId}`,
+          createdAt,
+          createdAt,
+          createdAt + 250,
+          createdAt + 250,
+        ],
+      );
+    }
+
+    evictOverflowForSession(input.sessionId, DEFAULT_MAX_MESSAGES_PER_SESSION);
+  });
+
+  return count;
 }
 
 export function getQueueStats(): QueueStats {
