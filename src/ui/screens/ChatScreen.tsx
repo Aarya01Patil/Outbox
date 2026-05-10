@@ -88,11 +88,13 @@ export function ChatScreen(): React.JSX.Element {
 
   const listEmpty = useMemo(
     () => (
-      <View style={styles.emptyState}>
+      <View style={styles.invertedListChild}>
+        <View style={styles.emptyState}>
         <Text style={styles.emptyTitle}>No messages yet</Text>
         <Text style={styles.emptyBody}>
           Send a message or seed 10,000 rows to test FlashList performance.
         </Text>
+        </View>
       </View>
     ),
     [],
@@ -265,6 +267,9 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingVertical: spacing.sm,
+  },
+  invertedListChild: {
+    transform: [{scaleY: -1}],
   },
   emptyState: {
     minHeight: 280,
