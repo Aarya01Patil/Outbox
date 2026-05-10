@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   bubble: {
     maxWidth: '78%',
     minWidth: 104,
-    borderRadius: 8,
+    borderRadius: 20,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
@@ -162,10 +162,12 @@ const styles = StyleSheet.create({
   outgoingBubble: {
     backgroundColor: colors.primaryDark,
     borderColor: colors.primary,
+    borderTopRightRadius: 8,
   },
   incomingBubble: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
+    borderTopLeftRadius: 8,
   },
   conflictBubble: {
     borderColor: colors.conflict,
@@ -219,7 +221,7 @@ const styles = StyleSheet.create({
   conflictBox: {
     marginTop: spacing.sm,
     padding: spacing.sm,
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
   },
   conflictLabel: {
@@ -236,11 +238,12 @@ const styles = StyleSheet.create({
   retryButton: {
     minHeight: touchTarget.minHeight,
     marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    borderRadius: 8,
+    borderRadius: 14,
     backgroundColor: colors.surfaceMuted,
   },
   retryText: {

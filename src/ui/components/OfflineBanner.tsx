@@ -11,7 +11,7 @@ export interface OfflineBannerProps {
 export function OfflineBanner({isConnected}: OfflineBannerProps): React.JSX.Element {
   if (isConnected) {
     return (
-      <View style={styles.online} accessibilityRole="text">
+      <View style={[styles.pill, styles.online]} accessibilityRole="text">
         <Wifi color={colors.success} size={16} strokeWidth={2.2} />
         <Text style={styles.onlineText}>Online</Text>
       </View>
@@ -19,32 +19,35 @@ export function OfflineBanner({isConnected}: OfflineBannerProps): React.JSX.Elem
   }
 
   return (
-    <View style={styles.offline} accessibilityRole="alert">
+    <View style={[styles.pill, styles.offline]} accessibilityRole="alert">
       <WifiOff color={colors.text} size={16} strokeWidth={2.2} />
-      <Text style={styles.offlineText}>Offline. Messages stay in the queue.</Text>
+      <Text style={styles.offlineText}>Offline queue active</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  online: {
+  pill: {
     minHeight: 32,
+    paddingHorizontal: spacing.md,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
+  online: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
   offline: {
-    minHeight: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
     backgroundColor: colors.offline,
+    borderColor: colors.offline,
   },
   onlineText: {
     color: colors.success,
     fontSize: typography.label,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   offlineText: {
     color: colors.text,

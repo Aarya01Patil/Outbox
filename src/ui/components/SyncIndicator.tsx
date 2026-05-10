@@ -11,12 +11,19 @@ export interface SyncIndicatorProps {
 
 export function SyncIndicator({status}: SyncIndicatorProps): React.JSX.Element {
   const label = getSyncLabel(status);
+  const accessibilityLabel = getSyncAccessibilityLabel(status, label);
   const tone = getTone(status);
 
   return (
-    <View style={styles.container} accessibilityRole="text">
+    <View
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="text"
+      style={[styles.container, getContainerStyle(tone)]}
+    >
       <SyncIcon tone={tone} />
-      <Text style={[styles.text, styles[tone]]}>{label}</Text>
+      <Text ellipsizeMode="tail" numberOfLines={1} style={[styles.text, styles[tone]]}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -39,11 +46,11 @@ function getSyncLabel(status: SyncStatusSnapshot): string {
   }
 
   if (status.phase === 'failed') {
-    return status.lastErrorMessage ?? 'Sync failed';
+    return 'Sync failed';
   }
 
   if (status.phase === 'timed-out') {
-    return 'Background sync timed out';
+    return 'Sync timed out';
   }
 
   const summary = status.lastSummary;
@@ -57,6 +64,17 @@ function getSyncLabel(status: SyncStatusSnapshot): string {
   }
 
   return 'Sync idle';
+}
+
+function getSyncAccessibilityLabel(
+  status: SyncStatusSnapshot,
+  visibleLabel: string,
+): string {
+  if (status.phase === 'failed' && status.lastErrorMessage !== null) {
+    return `${visibleLabel}: ${status.lastErrorMessage}`;
+  }
+
+  return visibleLabel;
 }
 
 function getTone(
@@ -81,16 +99,52 @@ function getTone(
   return 'muted';
 }
 
+function getContainerStyle(tone: 'muted' | 'success' | 'warning' | 'danger') {
+  switch (tone) {
+    case 'success':
+      return styles.successContainer;
+    case 'warning':
+      return styles.warningContainer;
+    case 'danger':
+      return styles.dangerContainer;
+    case 'muted':
+      return styles.mutedContainer;
+  }
+}
+
 const styles = StyleSheet.create({
   container: {
     minHeight: 32,
+    maxWidth: 176,
+    paddingHorizontal: spacing.md,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
   },
   text: {
+    flexShrink: 1,
     fontSize: typography.label,
     fontWeight: '700',
+  },
+  mutedContainer: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  successContainer: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  warningContainer: {
+    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,
+  },
+  dangerContainer: {
+    backgroundColor: colors.surface,
+    borderColor: colors.danger,
   },
   muted: {
     color: colors.textSubtle,

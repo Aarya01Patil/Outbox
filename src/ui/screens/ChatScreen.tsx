@@ -1,5 +1,5 @@
 import {FlashList} from '@shopify/flash-list';
-import {Database, RefreshCw, Send} from 'lucide-react-native';
+import {Database, RefreshCw, Send, Sparkles} from 'lucide-react-native';
 import React, {useCallback, useMemo, useState} from 'react';
 import {
   KeyboardAvoidingView,
@@ -88,16 +88,27 @@ export function ChatScreen(): React.JSX.Element {
 
   const listEmpty = useMemo(
     () => (
-      <View style={styles.invertedListChild}>
-        <View style={styles.emptyState}>
-        <Text style={styles.emptyTitle}>No messages yet</Text>
-        <Text style={styles.emptyBody}>
-          Send a message or seed 10,000 rows to test FlashList performance.
-        </Text>
+      <View style={styles.emptyState}>
+        <View style={styles.emptyIcon}>
+          <Sparkles color={colors.primary} size={20} strokeWidth={2.2} />
         </View>
+        <Text style={styles.emptyTitle}>Nothing in the outbox yet</Text>
+        <Text style={styles.emptyBody}>
+          Send a message to test the local queue, or seed a large history for
+          performance checks.
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Seed 10000 messages"
+          onPress={handleSeed}
+          style={styles.emptyAction}
+        >
+          <Database color={colors.background} size={18} strokeWidth={2.2} />
+          <Text style={styles.emptyActionText}>Seed 10,000 messages</Text>
+        </Pressable>
       </View>
     ),
-    [],
+    [handleSeed],
   );
 
   return (
@@ -107,49 +118,60 @@ export function ChatScreen(): React.JSX.Element {
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <View style={styles.titleBlock}>
-            <Text style={styles.eyebrow}>Outbox</Text>
-            <Text accessibilityRole="header" style={styles.title}>
-              Chats
-            </Text>
-            <Text style={styles.subtleStatus}>
-              Low latency local queue. {messageCount.toLocaleString()} stored.
-            </Text>
+          <Text style={styles.eyebrow}>Outbox</Text>
+          <View style={styles.headerRow}>
+            <View style={styles.titleBlock}>
+              <Text accessibilityRole="header" style={styles.title}>
+                Chats
+              </Text>
+              <Text style={styles.subtleStatus}>
+                Reliable local-first delivery with background recovery.
+              </Text>
+            </View>
+            <View style={styles.headerStatus}>
+              <OfflineBanner isConnected={connected} />
+              <SyncIndicator status={syncStatus} />
+            </View>
           </View>
-          <View style={styles.headerStatus}>
-            <OfflineBanner isConnected={connected} />
-            <SyncIndicator status={syncStatus} />
-          </View>
-        </View>
 
-        <View style={styles.toolbar}>
-          <Text style={styles.count}>
-            Showing {loadedCount.toLocaleString()} of{' '}
-            {messageCount.toLocaleString()}
-          </Text>
-          <View style={styles.toolbarActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Sync now"
-              onPress={handleSyncNow}
-              style={styles.iconButton}
-            >
-              <RefreshCw color={colors.text} size={18} strokeWidth={2.2} />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Seed 10000 messages"
-              onPress={handleSeed}
-              style={styles.iconButton}
-            >
-              <Database color={colors.text} size={18} strokeWidth={2.2} />
-            </Pressable>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryCopy}>
+              <Text style={styles.summaryLabel}>Stored messages</Text>
+              <Text style={styles.summaryValue}>
+                {messageCount.toLocaleString()}
+              </Text>
+              <Text style={styles.summaryDetail}>
+                Showing {loadedCount.toLocaleString()} right now
+              </Text>
+            </View>
+            <View style={styles.toolbarActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sync now"
+                onPress={handleSyncNow}
+                style={styles.actionButton}
+              >
+                <RefreshCw color={colors.text} size={18} strokeWidth={2.2} />
+                <Text style={styles.actionText}>Sync</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Seed 10000 messages"
+                onPress={handleSeed}
+                style={styles.actionButtonPrimary}
+              >
+                <Database color={colors.background} size={18} strokeWidth={2.2} />
+                <Text style={styles.actionTextPrimary}>Seed 10k</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
 
         <View style={styles.listFrame}>
           {loading ? (
             <SkeletonLoader />
+          ) : messages.length === 0 ? (
+            listEmpty
           ) : (
             <FlashList
               data={messages}
@@ -157,7 +179,6 @@ export function ChatScreen(): React.JSX.Element {
               keyExtractor={keyExtractor}
               inverted
               estimatedItemSize={ESTIMATED_MESSAGE_ROW_HEIGHT}
-              ListEmptyComponent={listEmpty}
               contentContainerStyle={styles.listContent}
               keyboardShouldPersistTaps="handled"
               onEndReached={loadMoreMessages}
@@ -202,7 +223,10 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -210,6 +234,7 @@ const styles = StyleSheet.create({
   },
   titleBlock: {
     flex: 1,
+    minWidth: 0,
   },
   eyebrow: {
     color: colors.primary,
@@ -220,74 +245,139 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: '900',
     letterSpacing: 0,
   },
   subtleStatus: {
     marginTop: spacing.xs,
     color: colors.textSubtle,
-    fontSize: typography.caption,
-    lineHeight: 16,
+    fontSize: typography.label,
+    lineHeight: 18,
   },
   headerStatus: {
+    paddingTop: spacing.xs,
     alignItems: 'flex-end',
+    gap: spacing.sm,
+    maxWidth: 184,
   },
-  toolbar: {
-    minHeight: 48,
-    paddingHorizontal: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  summaryCard: {
+    padding: spacing.lg,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  count: {
-    color: colors.textMuted,
+  summaryCopy: {
+    gap: spacing.xs,
+  },
+  summaryLabel: {
+    color: colors.textSubtle,
     fontSize: typography.label,
     fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0,
+  },
+  summaryValue: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  summaryDetail: {
+    color: colors.textMuted,
+    fontSize: typography.label,
   },
   toolbarActions: {
+    marginTop: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  iconButton: {
-    width: touchTarget.iconButton,
-    height: touchTarget.iconButton,
+  actionButton: {
+    minHeight: touchTarget.minHeight,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    flexDirection: 'row',
+    gap: spacing.sm,
     backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+  },
+  actionButtonPrimary: {
+    minHeight: touchTarget.minHeight,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+  },
+  actionText: {
+    color: colors.text,
+    fontSize: typography.label,
+    fontWeight: '800',
+  },
+  actionTextPrimary: {
+    color: colors.background,
+    fontSize: typography.label,
+    fontWeight: '900',
   },
   listFrame: {
     flex: 1,
     minHeight: 1,
   },
   listContent: {
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
-  invertedListChild: {
-    transform: [{scaleY: -1}],
-  },
   emptyState: {
-    minHeight: 280,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.md,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
   },
   emptyTitle: {
     color: colors.text,
-    fontSize: typography.subtitle,
+    fontSize: 22,
     fontWeight: '900',
+    textAlign: 'center',
   },
   emptyBody: {
-    marginTop: spacing.sm,
     color: colors.textMuted,
     fontSize: typography.body,
     lineHeight: 24,
     textAlign: 'center',
+    maxWidth: 320,
+  },
+  emptyAction: {
+    minHeight: touchTarget.minHeight,
+    paddingHorizontal: spacing.xl,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  emptyActionText: {
+    color: colors.background,
+    fontSize: typography.body,
+    fontWeight: '900',
   },
   composer: {
     padding: spacing.md,
@@ -296,7 +386,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
   },
   input: {
     flex: 1,
@@ -304,18 +394,20 @@ const styles = StyleSheet.create({
     maxHeight: 112,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: 8,
+    borderRadius: 18,
     color: colors.text,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     fontSize: typography.body,
     lineHeight: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   sendButton: {
     width: touchTarget.iconButton,
     height: touchTarget.iconButton,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 16,
     backgroundColor: colors.primary,
   },
   disabledButton: {

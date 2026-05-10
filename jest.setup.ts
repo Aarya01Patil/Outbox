@@ -137,6 +137,8 @@ jest.mock('lucide-react-native', () => {
     LogIn: createIcon('LogIn'),
     RefreshCw: createIcon('RefreshCw'),
     Send: createIcon('Send'),
+    Shield: createIcon('Shield'),
+    Sparkles: createIcon('Sparkles'),
     Wifi: createIcon('Wifi'),
     WifiOff: createIcon('WifiOff'),
     XCircle: createIcon('XCircle'),

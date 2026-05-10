@@ -39,7 +39,7 @@ describe('Part D UI components', () => {
   it('renders offline and online network states', () => {
     const {rerender} = render(<OfflineBanner isConnected={false} />);
 
-    expect(screen.getByText('Offline. Messages stay in the queue.')).toBeTruthy();
+    expect(screen.getByText('Offline queue active')).toBeTruthy();
 
     rerender(<OfflineBanner isConnected />);
     expect(screen.getByText('Online')).toBeTruthy();

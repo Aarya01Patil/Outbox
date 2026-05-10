@@ -1,19 +1,22 @@
 export const colors = {
-  background: '#0B1220',
-  surface: '#111827',
-  surfaceMuted: '#1F2937',
-  border: '#334155',
-  text: '#F8FAFC',
-  textMuted: '#CBD5E1',
-  textSubtle: '#94A3B8',
-  primary: '#38BDF8',
-  primaryDark: '#0284C7',
-  success: '#34D399',
-  warning: '#F59E0B',
-  danger: '#F87171',
-  conflict: '#C084FC',
-  offline: '#F97316',
-  overlay: 'rgba(2, 6, 23, 0.68)',
+  background: '#07111F',
+  surface: '#0D1A2B',
+  surfaceElevated: '#11243B',
+  surfaceMuted: '#19314F',
+  border: '#233B5D',
+  borderStrong: '#315988',
+  text: '#F3F7FC',
+  textMuted: '#C1CEDC',
+  textSubtle: '#86A0BC',
+  primary: '#31B5FF',
+  primaryDark: '#1185D6',
+  success: '#35D39A',
+  warning: '#F4BD58',
+  danger: '#FF7C77',
+  conflict: '#B993FF',
+  offline: '#F38B42',
+  overlay: 'rgba(6, 14, 28, 0.58)',
+  overlayHeavy: 'rgba(6, 14, 28, 0.84)',
 } as const;
 
 export const spacing = {
@@ -23,6 +26,7 @@ export const spacing = {
   lg: 16,
   xl: 24,
   xxl: 32,
+  xxxl: 40,
 } as const;
 
 export const typography = {
@@ -34,6 +38,6 @@ export const typography = {
 } as const;
 
 export const touchTarget = {
-  minHeight: 48,
-  iconButton: 48,
+  minHeight: 52,
+  iconButton: 52,
 } as const;
