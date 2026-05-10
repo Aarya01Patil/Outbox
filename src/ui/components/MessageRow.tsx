@@ -142,8 +142,8 @@ export const MessageRow = memo(MessageRowComponent);
 const styles = StyleSheet.create({
   row: {
     width: '100%',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 3,
   },
   outgoingRow: {
     alignItems: 'flex-end',
@@ -152,10 +152,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   bubble: {
-    maxWidth: '84%',
-    minWidth: 132,
+    maxWidth: '78%',
+    minWidth: 104,
     borderRadius: 8,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
   },
   outgoingBubble: {
@@ -171,15 +172,15 @@ const styles = StyleSheet.create({
   },
   body: {
     color: colors.text,
-    fontSize: typography.body,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 20,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.sm,
-    gap: spacing.md,
+    marginTop: spacing.xs,
+    gap: spacing.sm,
   },
   time: {
     color: colors.textMuted,

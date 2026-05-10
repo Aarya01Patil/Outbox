@@ -135,6 +135,15 @@ export function getAllMessagesForSession(
   );
 }
 
+export function getSessionMessageCount(sessionId: string): number {
+  const row = queryOne<{count: number}>(
+    'SELECT COUNT(*) AS count FROM messages WHERE session_id = ?;',
+    [sessionId],
+  );
+
+  return row?.count ?? 0;
+}
+
 export function getPendingBatch(limit: number, now = Date.now()): QueueCandidate[] {
   const boundedLimit = Math.max(1, Math.min(limit, 100));
 

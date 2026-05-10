@@ -43,11 +43,13 @@ describe('ChatScreen', () => {
       loading: false,
       busy: false,
       messageCount: 1,
+      loadedCount: 1,
       sendMessage,
       retryQueuedMessage,
       syncNow,
       seedMessages,
       refreshMessages: jest.fn(),
+      loadMoreMessages: jest.fn(),
     });
     mockUseNetworkStatus.mockReturnValue({
       isConnected: true,
@@ -77,6 +79,7 @@ describe('ChatScreen', () => {
 
     const flatList = screen.UNSAFE_getByType(FlatList);
     expect(flatList.props.estimatedItemSize).toBe(112);
+    expect(flatList.props.inverted).toBe(true);
   });
 });
 

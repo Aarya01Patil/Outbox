@@ -35,10 +35,12 @@ export function ChatScreen(): React.JSX.Element {
     loading,
     busy,
     messageCount,
+    loadedCount,
     sendMessage,
     retryQueuedMessage,
     syncNow,
     seedMessages,
+    loadMoreMessages,
   } = useMessages({
     sessionId: SESSION_ID,
     senderId: SENDER_ID,
@@ -103,10 +105,13 @@ export function ChatScreen(): React.JSX.Element {
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <View>
+          <View style={styles.titleBlock}>
             <Text style={styles.eyebrow}>Outbox</Text>
             <Text accessibilityRole="header" style={styles.title}>
-              Messages
+              Chats
+            </Text>
+            <Text style={styles.subtleStatus}>
+              Low latency local queue. {messageCount.toLocaleString()} stored.
             </Text>
           </View>
           <View style={styles.headerStatus}>
@@ -116,7 +121,10 @@ export function ChatScreen(): React.JSX.Element {
         </View>
 
         <View style={styles.toolbar}>
-          <Text style={styles.count}>{messageCount.toLocaleString()} messages</Text>
+          <Text style={styles.count}>
+            Showing {loadedCount.toLocaleString()} of{' '}
+            {messageCount.toLocaleString()}
+          </Text>
           <View style={styles.toolbarActions}>
             <Pressable
               accessibilityRole="button"
@@ -130,10 +138,9 @@ export function ChatScreen(): React.JSX.Element {
               accessibilityRole="button"
               accessibilityLabel="Seed 10000 messages"
               onPress={handleSeed}
-              style={styles.seedButton}
+              style={styles.iconButton}
             >
-              <Database color={colors.background} size={18} strokeWidth={2.2} />
-              <Text style={styles.seedText}>Seed 10k</Text>
+              <Database color={colors.text} size={18} strokeWidth={2.2} />
             </Pressable>
           </View>
         </View>
@@ -146,10 +153,13 @@ export function ChatScreen(): React.JSX.Element {
               data={messages}
               renderItem={renderItem}
               keyExtractor={keyExtractor}
+              inverted
               estimatedItemSize={ESTIMATED_MESSAGE_ROW_HEIGHT}
               ListEmptyComponent={listEmpty}
               contentContainerStyle={styles.listContent}
               keyboardShouldPersistTaps="handled"
+              onEndReached={loadMoreMessages}
+              onEndReachedThreshold={0.25}
             />
           )}
         </View>
@@ -189,12 +199,15 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: spacing.lg,
+  },
+  titleBlock: {
+    flex: 1,
   },
   eyebrow: {
     color: colors.primary,
@@ -205,15 +218,21 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: typography.title,
+    fontSize: 24,
     fontWeight: '900',
     letterSpacing: 0,
+  },
+  subtleStatus: {
+    marginTop: spacing.xs,
+    color: colors.textSubtle,
+    fontSize: typography.caption,
+    lineHeight: 16,
   },
   headerStatus: {
     alignItems: 'flex-end',
   },
   toolbar: {
-    minHeight: 56,
+    minHeight: 48,
     paddingHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
@@ -240,27 +259,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.surface,
   },
-  seedButton: {
-    minHeight: touchTarget.minHeight,
-    paddingHorizontal: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-  },
-  seedText: {
-    color: colors.background,
-    fontSize: typography.label,
-    fontWeight: '900',
-  },
   listFrame: {
     flex: 1,
     minHeight: 1,
   },
   listContent: {
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
   emptyState: {
     minHeight: 280,
