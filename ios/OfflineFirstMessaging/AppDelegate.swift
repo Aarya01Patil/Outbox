@@ -14,6 +14,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    BackgroundSyncScheduler.register()
+    BackgroundSyncScheduler.schedule()
+
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -30,6 +33,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     )
 
     return true
+  }
+
+  func applicationDidEnterBackground(_ application: UIApplication) {
+    BackgroundSyncScheduler.schedule()
   }
 }
 
