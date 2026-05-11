@@ -80,11 +80,27 @@ function createMessagesTable(db: DB): void {
 }
 
 function addConflictMetadataColumns(db: DB): void {
-  db.executeSync('ALTER TABLE messages ADD COLUMN conflict_reason TEXT;');
-  db.executeSync('ALTER TABLE messages ADD COLUMN conflict_local_body TEXT;');
-  db.executeSync('ALTER TABLE messages ADD COLUMN conflict_server_body TEXT;');
-  db.executeSync('ALTER TABLE messages ADD COLUMN conflict_server_updated_at INTEGER;');
-  db.executeSync('ALTER TABLE messages ADD COLUMN conflict_server_version INTEGER;');
+  // Read existing columns first so we can skip ones already present.
+  // ALTER TABLE ADD COLUMN has no IF NOT EXISTS in SQLite; trying to add a
+  // column that already exists throws inside our transaction and causes a
+  // migration loop on subsequent app starts.
+  const existing = new Set(
+    db.executeSync('PRAGMA table_info(messages);').rows.map(r => r.name as string),
+  );
+
+  const columns: Array<{name: string; type: string}> = [
+    {name: 'conflict_reason', type: 'TEXT'},
+    {name: 'conflict_local_body', type: 'TEXT'},
+    {name: 'conflict_server_body', type: 'TEXT'},
+    {name: 'conflict_server_updated_at', type: 'INTEGER'},
+    {name: 'conflict_server_version', type: 'INTEGER'},
+  ];
+
+  for (const col of columns) {
+    if (!existing.has(col.name)) {
+      db.executeSync(`ALTER TABLE messages ADD COLUMN ${col.name} ${col.type};`);
+    }
+  }
 }
 
 function createMessageIndexes(db: DB): void {

@@ -135,6 +135,14 @@ export function getAllMessagesForSession(
   );
 }
 
+export function getLastMessageForSession(sessionId: string): MessageRecord | null {
+  return queryOne(
+    `SELECT * FROM messages WHERE session_id = ? ORDER BY created_at_client DESC LIMIT 1;`,
+    [sessionId],
+    mapMessageRow,
+  );
+}
+
 export function getSessionMessageCount(sessionId: string): number {
   const row = queryOne<{count: number}>(
     'SELECT COUNT(*) AS count FROM messages WHERE session_id = ?;',
@@ -489,14 +497,39 @@ function evictOverflowForSession(sessionId: string, maxMessages: number): void {
     [sessionId, overflow],
   );
 
-  for (const row of evictableRows) {
-    executeSync('DELETE FROM messages WHERE client_id = ?;', [row.client_id]);
+  if (evictableRows.length === 0) {
+    return;
   }
+
+  const placeholders = evictableRows.map(() => '?').join(', ');
+  const ids = evictableRows.map(row => row.client_id);
+  executeSync(`DELETE FROM messages WHERE client_id IN (${placeholders});`, ids);
+}
+
+function generateUUID(): string {
+  // Prefer Web Crypto (Hermes 0.11+ / RN 0.71+) for cryptographic randomness.
+  // Fall back to Math.random so message IDs are still unique on devices where
+  // globalThis.crypto is unavailable (e.g. certain Android system WebViews).
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.getRandomValues === 'function'
+  ) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+    bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+    const h = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }
 
 function createClientMessageId(now: number): string {
-  const randomPart = Math.random().toString(36).slice(2, 12);
-  return `msg_${now}_${randomPart}`;
+  return `msg_${now}_${generateUUID()}`;
 }
 
 function mapQueueCandidate(row: Record<string, Scalar>): QueueCandidate {
@@ -588,8 +621,9 @@ function readString(value: Scalar, field: string): string {
 }
 
 function readNullableString(value: Scalar, field: string): string | null {
-  if (value === null || typeof value === 'string') {
-    return value;
+  // op-sqlite may return undefined for NULL columns on Android; treat as null.
+  if (value === null || value === undefined || typeof value === 'string') {
+    return value ?? null;
   }
 
   throw new Error(`Expected nullable string for ${field}`);
@@ -604,8 +638,9 @@ function readNumber(value: Scalar, field: string): number {
 }
 
 function readNullableNumber(value: Scalar, field: string): number | null {
-  if (value === null || typeof value === 'number') {
-    return value;
+  // op-sqlite may return undefined for NULL columns on Android; treat as null.
+  if (value === null || value === undefined || typeof value === 'number') {
+    return value ?? null;
   }
 
   throw new Error(`Expected nullable number for ${field}`);

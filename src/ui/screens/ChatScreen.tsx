@@ -1,6 +1,12 @@
 import {FlashList} from '@shopify/flash-list';
-import {Database, RefreshCw, Send, Sparkles} from 'lucide-react-native';
-import React, {useCallback, useMemo, useState} from 'react';
+import {
+  ArrowLeft,
+  Database,
+  RefreshCw,
+  Send,
+  Sparkles,
+} from 'lucide-react-native';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -16,18 +22,30 @@ import {useMessages} from '../../hooks/useMessages';
 import {useNetworkStatus} from '../../hooks/useNetworkStatus';
 import {useSyncStatus} from '../../hooks/useSyncStatus';
 import type {MessageRecord} from '../../types/message';
+import type {ConflictStrategy} from '../../hooks/useMessages';
+import {ConflictSheet} from '../components/ConflictSheet';
 import {MessageRow} from '../components/MessageRow';
 import {OfflineBanner} from '../components/OfflineBanner';
 import {SkeletonLoader} from '../components/SkeletonLoader';
 import {SyncIndicator} from '../components/SyncIndicator';
-import {colors, spacing, touchTarget, typography} from '../theme';
+import {colors, radius, spacing, touchTarget, typography} from '../theme';
 
-const SESSION_ID = 'assignment-session';
-const SENDER_ID = 'local-user';
 const ESTIMATED_MESSAGE_ROW_HEIGHT = 112;
 
-export function ChatScreen(): React.JSX.Element {
+export interface ChatScreenProps {
+  sessionId: string;
+  sessionName: string;
+  onBack: () => void;
+}
+
+export function ChatScreen({
+  sessionId,
+  sessionName,
+  onBack,
+}: ChatScreenProps): React.JSX.Element {
   const [draft, setDraft] = useState('');
+  const [conflictMessage, setConflictMessage] = useState<MessageRecord | null>(null);
+  const [conflictSheetVisible, setConflictSheetVisible] = useState(false);
   const network = useNetworkStatus();
   const syncStatus = useSyncStatus();
   const {
@@ -38,21 +56,35 @@ export function ChatScreen(): React.JSX.Element {
     loadedCount,
     sendMessage,
     retryQueuedMessage,
+    resolveConflict,
     syncNow,
     seedMessages,
     loadMoreMessages,
   } = useMessages({
-    sessionId: SESSION_ID,
-    senderId: SENDER_ID,
+    sessionId,
+    senderId: 'local-user',
   });
   const connected = network.isConnected && network.isInternetReachable !== false;
-  const canSend = draft.trim().length > 0 && !busy;
+  const MAX_CHARS = 2000;
+  const charCount = draft.length;
+  const canSend = charCount > 0 && charCount <= MAX_CHARS && !busy;
+
+  // Auto-sync when coming back online
+  const prevConnected = useRef(connected);
+  useEffect(() => {
+    if (!prevConnected.current && connected) {
+      syncNow().catch(() => {});
+    }
+    prevConnected.current = connected;
+  }, [connected, syncNow]);
 
   const handleSend = useCallback(() => {
     const message = draft;
     setDraft('');
     sendMessage(message).catch(error => {
       console.warn('[ChatScreen] send failed', error);
+      // Restore the draft so the user can retry without re-typing their message.
+      setDraft(message);
     });
   }, [draft, sendMessage]);
 
@@ -64,6 +96,23 @@ export function ChatScreen(): React.JSX.Element {
     },
     [retryQueuedMessage],
   );
+
+  const handleConflictTap = useCallback((message: MessageRecord) => {
+    setConflictMessage(message);
+    setConflictSheetVisible(true);
+  }, []);
+
+  const handleResolveConflict = useCallback(
+    (clientId: string, strategy: ConflictStrategy) => {
+      resolveConflict(clientId, strategy);
+    },
+    [resolveConflict],
+  );
+
+  const handleDismissConflict = useCallback(() => {
+    setConflictSheetVisible(false);
+    setTimeout(() => setConflictMessage(null), 300);
+  }, []);
 
   const handleSyncNow = useCallback(() => {
     syncNow().catch(error => {
@@ -79,9 +128,13 @@ export function ChatScreen(): React.JSX.Element {
 
   const renderItem = useCallback(
     ({item}: {item: MessageRecord}) => (
-      <MessageRow message={item} onRetry={handleRetry} />
+      <MessageRow
+        message={item}
+        onRetry={handleRetry}
+        onConflictTap={handleConflictTap}
+      />
     ),
-    [handleRetry],
+    [handleRetry, handleConflictTap],
   );
 
   const keyExtractor = useCallback((item: MessageRecord) => item.clientId, []);
@@ -90,21 +143,23 @@ export function ChatScreen(): React.JSX.Element {
     () => (
       <View style={styles.emptyState}>
         <View style={styles.emptyIcon}>
-          <Sparkles color={colors.primary} size={20} strokeWidth={2.2} />
+          <Sparkles color={colors.primary} size={22} strokeWidth={2.2} />
         </View>
-        <Text style={styles.emptyTitle}>Nothing in the outbox yet</Text>
+        <Text style={styles.emptyTitle}>Start the conversation</Text>
         <Text style={styles.emptyBody}>
-          Send a message to test the local queue, or seed a large history for
-          performance checks.
+          Messages are saved locally first, then synced when connected.
         </Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Seed 10000 messages"
           onPress={handleSeed}
-          style={styles.emptyAction}
+          style={({pressed}) => [
+            styles.emptyAction,
+            pressed && styles.buttonPressed,
+          ]}
         >
-          <Database color={colors.background} size={18} strokeWidth={2.2} />
-          <Text style={styles.emptyActionText}>Seed 10,000 messages</Text>
+          <Database color={colors.background} size={16} strokeWidth={2.2} />
+          <Text style={styles.emptyActionText}>Seed 10k messages</Text>
         </Pressable>
       </View>
     ),
@@ -114,62 +169,64 @@ export function ChatScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
+        {/* Header — single row */}
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>Outbox</Text>
-          <View style={styles.headerRow}>
-            <View style={styles.titleBlock}>
-              <Text accessibilityRole="header" style={styles.title}>
-                Chats
-              </Text>
-              <Text style={styles.subtleStatus}>
-                Reliable local-first delivery with background recovery.
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back to conversations"
+            onPress={onBack}
+            style={({pressed}) => [
+              styles.backButton,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            <ArrowLeft color={colors.text} size={20} strokeWidth={2.2} />
+          </Pressable>
+
+          {/* Avatar + name block */}
+          <View style={styles.headerCenter}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarLetter}>
+                {sessionName.charAt(0).toUpperCase()}
               </Text>
             </View>
-            <View style={styles.headerStatus}>
-              <OfflineBanner isConnected={connected} />
-              <SyncIndicator status={syncStatus} />
+            <View style={styles.headerText}>
+              <Text accessibilityRole="header" style={styles.headerTitle} numberOfLines={1}>
+                {sessionName}
+              </Text>
+              <Text style={styles.headerMeta} numberOfLines={1}>
+                {messageCount > 0
+                  ? `${messageCount.toLocaleString()} msgs`
+                  : 'No messages yet'}
+              </Text>
             </View>
           </View>
 
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryCopy}>
-              <Text style={styles.summaryLabel}>Stored messages</Text>
-              <Text style={styles.summaryValue}>
-                {messageCount.toLocaleString()}
-              </Text>
-              <Text style={styles.summaryDetail}>
-                Showing {loadedCount.toLocaleString()} right now
-              </Text>
-            </View>
-            <View style={styles.toolbarActions}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Sync now"
-                onPress={handleSyncNow}
-                style={styles.actionButton}
-              >
-                <RefreshCw color={colors.text} size={18} strokeWidth={2.2} />
-                <Text style={styles.actionText}>Sync</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Seed 10000 messages"
-                onPress={handleSeed}
-                style={styles.actionButtonPrimary}
-              >
-                <Database color={colors.background} size={18} strokeWidth={2.2} />
-                <Text style={styles.actionTextPrimary}>Seed 10k</Text>
-              </Pressable>
-            </View>
+          {/* Right actions */}
+          <View style={styles.headerRight}>
+            <OfflineBanner isConnected={connected} />
+            <SyncIndicator status={syncStatus} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Sync now"
+              onPress={handleSyncNow}
+              style={({pressed}) => [
+                styles.iconBtn,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <RefreshCw color={colors.textMuted} size={16} strokeWidth={2.2} />
+            </Pressable>
           </View>
         </View>
 
+        {/* Message List */}
         <View style={styles.listFrame}>
           {loading ? (
-            <SkeletonLoader />
+            <SkeletonLoader variant="chat" />
           ) : messages.length === 0 ? (
             listEmpty
           ) : (
@@ -187,27 +244,57 @@ export function ChatScreen(): React.JSX.Element {
           )}
         </View>
 
+        {/* Composer */}
         <View style={styles.composer}>
-          <TextInput
-            accessibilityLabel="Message body"
-            placeholder="Write a message"
-            placeholderTextColor={colors.textSubtle}
-            value={draft}
-            onChangeText={setDraft}
-            multiline
-            style={styles.input}
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              accessibilityLabel="Message body"
+              placeholder="Write a message…"
+              placeholderTextColor={colors.textSubtle}
+              value={draft}
+              onChangeText={setDraft}
+              multiline
+              maxLength={MAX_CHARS}
+              returnKeyType="send"
+              enablesReturnKeyAutomatically
+              blurOnSubmit={false}
+              onSubmitEditing={canSend ? handleSend : undefined}
+              style={styles.input}
+            />
+            {charCount > MAX_CHARS * 0.8 ? (
+              <Text
+                style={[
+                  styles.charCount,
+                  charCount >= MAX_CHARS && styles.charCountLimit,
+                ]}
+              >
+                {MAX_CHARS - charCount}
+              </Text>
+            ) : null}
+          </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Send message"
             disabled={!canSend}
             onPress={handleSend}
-            style={[styles.sendButton, !canSend && styles.disabledButton]}
+            style={({pressed}) => [
+              styles.sendButton,
+              !canSend && styles.disabledButton,
+              pressed && canSend && styles.sendPressed,
+            ]}
           >
-            <Send color={colors.background} size={20} strokeWidth={2.4} />
+            <Send color={colors.background} size={18} strokeWidth={2.4} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Conflict Resolution Sheet */}
+      <ConflictSheet
+        visible={conflictSheetVisible}
+        message={conflictMessage}
+        onResolve={handleResolveConflict}
+        onDismiss={handleDismissConflict}
+      />
     </SafeAreaView>
   );
 }
@@ -221,116 +308,83 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
-    gap: spacing.md,
-  },
-  headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-  },
-  titleBlock: {
-    flex: 1,
-    minWidth: 0,
-  },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: typography.label,
-    fontWeight: '800',
-    letterSpacing: 0,
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  subtleStatus: {
-    marginTop: spacing.xs,
-    color: colors.textSubtle,
-    fontSize: typography.label,
-    lineHeight: 18,
-  },
-  headerStatus: {
-    paddingTop: spacing.xs,
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
     gap: spacing.sm,
-    maxWidth: 184,
   },
-  summaryCard: {
-    padding: spacing.lg,
-    borderRadius: 22,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm + 2,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+    flexShrink: 0,
   },
-  summaryCopy: {
-    gap: spacing.xs,
-  },
-  summaryLabel: {
-    color: colors.textSubtle,
-    fontSize: typography.label,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0,
-  },
-  summaryValue: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  summaryDetail: {
-    color: colors.textMuted,
-    fontSize: typography.label,
-  },
-  toolbarActions: {
-    marginTop: spacing.lg,
+  headerCenter: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    minWidth: 0,
   },
-  actionButton: {
-    minHeight: touchTarget.minHeight,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 16,
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryDark,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
+  },
+  avatarLetter: {
+    color: colors.text,
+    fontSize: typography.label,
+    fontWeight: '900',
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerTitle: {
+    color: colors.text,
+    fontSize: typography.body,
+    fontWeight: '900',
+  },
+  headerMeta: {
+    color: colors.textSubtle,
+    fontSize: typography.tiny,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  headerRight: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 0,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm + 2,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-  },
-  actionButtonPrimary: {
-    minHeight: touchTarget.minHeight,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-  },
-  actionText: {
-    color: colors.text,
-    fontSize: typography.label,
-    fontWeight: '800',
-  },
-  actionTextPrimary: {
-    color: colors.background,
-    fontSize: typography.label,
-    fontWeight: '900',
+    borderColor: colors.border,
   },
   listFrame: {
     flex: 1,
     minHeight: 1,
   },
   listContent: {
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     paddingVertical: spacing.sm,
   },
   emptyState: {
@@ -344,16 +398,16 @@ const styles = StyleSheet.create({
   emptyIcon: {
     width: 56,
     height: 56,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.primaryGlow,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
+    borderColor: 'rgba(49, 181, 255, 0.3)',
   },
   emptyTitle: {
     color: colors.text,
-    fontSize: 22,
+    fontSize: typography.subtitle + 2,
     fontWeight: '900',
     textAlign: 'center',
   },
@@ -362,12 +416,12 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     lineHeight: 24,
     textAlign: 'center',
-    maxWidth: 320,
+    maxWidth: 300,
   },
   emptyAction: {
     minHeight: touchTarget.minHeight,
     paddingHorizontal: spacing.xl,
-    borderRadius: 16,
+    borderRadius: radius.md,
     backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
@@ -376,7 +430,7 @@ const styles = StyleSheet.create({
   },
   emptyActionText: {
     color: colors.background,
-    fontSize: typography.body,
+    fontSize: typography.label,
     fontWeight: '900',
   },
   composer: {
@@ -386,31 +440,54 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
+  },
+  inputWrapper: {
+    flex: 1,
+    position: 'relative',
   },
   input: {
-    flex: 1,
-    minHeight: touchTarget.minHeight,
+    minHeight: 44,
     maxHeight: 112,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: 18,
+    paddingBottom: spacing.sm + 2,
+    borderRadius: radius.lg,
     color: colors.text,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     fontSize: typography.body,
     lineHeight: 22,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
+  charCount: {
+    position: 'absolute',
+    right: spacing.sm,
+    bottom: spacing.xs,
+    fontSize: typography.tiny,
+    color: colors.textSubtle,
+    fontWeight: '600',
+  },
+  charCountLimit: {
+    color: colors.danger,
+  },
   sendButton: {
-    width: touchTarget.iconButton,
-    height: touchTarget.iconButton,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: radius.md,
     backgroundColor: colors.primary,
   },
+  sendPressed: {
+    transform: [{scale: 0.92}],
+    backgroundColor: colors.primaryDark,
+  },
   disabledButton: {
-    opacity: 0.45,
+    opacity: 0.35,
+  },
+  buttonPressed: {
+    opacity: 0.7,
+    transform: [{scale: 0.95}],
   },
 });
