@@ -6,7 +6,7 @@ import {
   Send,
   Sparkles,
 } from 'lucide-react-native';
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -30,7 +30,8 @@ import {SkeletonLoader} from '../components/SkeletonLoader';
 import {SyncIndicator} from '../components/SyncIndicator';
 import {colors, radius, spacing, touchTarget, typography} from '../theme';
 
-const ESTIMATED_MESSAGE_ROW_HEIGHT = 112;
+// Calibrated to typical single-line message height after paddingVertical:6 per row.
+const ESTIMATED_MESSAGE_ROW_HEIGHT = 80;
 
 export interface ChatScreenProps {
   sessionId: string;
@@ -43,7 +44,6 @@ export function ChatScreen({
   sessionName,
   onBack,
 }: ChatScreenProps): React.JSX.Element {
-  const [draft, setDraft] = useState('');
   const [conflictMessage, setConflictMessage] = useState<MessageRecord | null>(null);
   const [conflictSheetVisible, setConflictSheetVisible] = useState(false);
   const network = useNetworkStatus();
@@ -53,7 +53,6 @@ export function ChatScreen({
     loading,
     busy,
     messageCount,
-    loadedCount,
     sendMessage,
     retryQueuedMessage,
     resolveConflict,
@@ -65,9 +64,6 @@ export function ChatScreen({
     senderId: 'local-user',
   });
   const connected = network.isConnected && network.isInternetReachable !== false;
-  const MAX_CHARS = 2000;
-  const charCount = draft.length;
-  const canSend = charCount > 0 && charCount <= MAX_CHARS && !busy;
 
   // Auto-sync when coming back online
   const prevConnected = useRef(connected);
@@ -77,16 +73,6 @@ export function ChatScreen({
     }
     prevConnected.current = connected;
   }, [connected, syncNow]);
-
-  const handleSend = useCallback(() => {
-    const message = draft;
-    setDraft('');
-    sendMessage(message).catch(error => {
-      console.warn('[ChatScreen] send failed', error);
-      // Restore the draft so the user can retry without re-typing their message.
-      setDraft(message);
-    });
-  }, [draft, sendMessage]);
 
   const handleRetry = useCallback(
     (clientId: string) => {
@@ -205,9 +191,9 @@ export function ChatScreen({
             </View>
           </View>
 
-          {/* Right actions */}
+          {/* Right actions — compact OfflineBanner prevents header overflow on narrow screens */}
           <View style={styles.headerRight}>
-            <OfflineBanner isConnected={connected} />
+            <OfflineBanner isConnected={connected} compact />
             <SyncIndicator status={syncStatus} />
             <Pressable
               accessibilityRole="button"
@@ -239,53 +225,13 @@ export function ChatScreen({
               contentContainerStyle={styles.listContent}
               keyboardShouldPersistTaps="handled"
               onEndReached={loadMoreMessages}
-              onEndReachedThreshold={0.25}
+              onEndReachedThreshold={0.5}
             />
           )}
         </View>
 
-        {/* Composer */}
-        <View style={styles.composer}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              accessibilityLabel="Message body"
-              placeholder="Write a message…"
-              placeholderTextColor={colors.textSubtle}
-              value={draft}
-              onChangeText={setDraft}
-              multiline
-              maxLength={MAX_CHARS}
-              returnKeyType="send"
-              enablesReturnKeyAutomatically
-              blurOnSubmit={false}
-              onSubmitEditing={canSend ? handleSend : undefined}
-              style={styles.input}
-            />
-            {charCount > MAX_CHARS * 0.8 ? (
-              <Text
-                style={[
-                  styles.charCount,
-                  charCount >= MAX_CHARS && styles.charCountLimit,
-                ]}
-              >
-                {MAX_CHARS - charCount}
-              </Text>
-            ) : null}
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Send message"
-            disabled={!canSend}
-            onPress={handleSend}
-            style={({pressed}) => [
-              styles.sendButton,
-              !canSend && styles.disabledButton,
-              pressed && canSend && styles.sendPressed,
-            ]}
-          >
-            <Send color={colors.background} size={18} strokeWidth={2.4} />
-          </Pressable>
-        </View>
+        {/* Composer — draft state isolated here so keystrokes don't re-render the list */}
+        <ChatComposer busy={busy} onSend={sendMessage} />
       </KeyboardAvoidingView>
 
       {/* Conflict Resolution Sheet */}
@@ -298,6 +244,74 @@ export function ChatScreen({
     </SafeAreaView>
   );
 }
+
+interface ChatComposerProps {
+  busy: boolean;
+  onSend: (body: string) => Promise<void>;
+}
+
+const ChatComposer = memo(function ChatComposer({
+  busy,
+  onSend,
+}: ChatComposerProps): React.JSX.Element {
+  const [draft, setDraft] = useState('');
+  const MAX_CHARS = 2000;
+  const charCount = draft.length;
+  const canSend = charCount > 0 && charCount <= MAX_CHARS && !busy;
+
+  const handleSend = useCallback(() => {
+    const message = draft;
+    setDraft('');
+    onSend(message).catch((error: unknown) => {
+      console.warn('[ChatScreen] send failed', error);
+      setDraft(message);
+    });
+  }, [draft, onSend]);
+
+  return (
+    <View style={styles.composer}>
+      <View style={styles.inputWrapper}>
+        <TextInput
+          accessibilityLabel="Message body"
+          placeholder="Write a message…"
+          placeholderTextColor={colors.textSubtle}
+          value={draft}
+          onChangeText={setDraft}
+          multiline
+          maxLength={MAX_CHARS}
+          returnKeyType="send"
+          enablesReturnKeyAutomatically
+          blurOnSubmit={false}
+          onSubmitEditing={canSend ? handleSend : undefined}
+          style={styles.input}
+        />
+        {charCount > MAX_CHARS * 0.8 ? (
+          <Text
+            style={[
+              styles.charCount,
+              charCount >= MAX_CHARS && styles.charCountLimit,
+            ]}
+          >
+            {MAX_CHARS - charCount}
+          </Text>
+        ) : null}
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Send message"
+        disabled={!canSend}
+        onPress={handleSend}
+        style={({pressed}) => [
+          styles.sendButton,
+          !canSend && styles.disabledButton,
+          pressed && canSend && styles.sendPressed,
+        ]}
+      >
+        <Send color={colors.background} size={18} strokeWidth={2.4} />
+      </Pressable>
+    </View>
+  );
+});
 
 const styles = StyleSheet.create({
   safeArea: {

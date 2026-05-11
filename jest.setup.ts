@@ -128,19 +128,28 @@ jest.mock('lucide-react-native', () => {
   return {
     AlertCircle: createIcon('AlertCircle'),
     AlertTriangle: createIcon('AlertTriangle'),
+    ArrowLeft: createIcon('ArrowLeft'),
+    Briefcase: createIcon('Briefcase'),
     Check: createIcon('Check'),
     CheckCheck: createIcon('CheckCheck'),
     CheckCircle2: createIcon('CheckCircle2'),
+    ChevronRight: createIcon('ChevronRight'),
     Clock3: createIcon('Clock3'),
     Database: createIcon('Database'),
     Loader2: createIcon('Loader2'),
     LogIn: createIcon('LogIn'),
+    MessageCircle: createIcon('MessageCircle'),
     RefreshCw: createIcon('RefreshCw'),
+    RotateCcw: createIcon('RotateCcw'),
     Send: createIcon('Send'),
     Shield: createIcon('Shield'),
     Sparkles: createIcon('Sparkles'),
+    Users: createIcon('Users'),
     Wifi: createIcon('Wifi'),
     WifiOff: createIcon('WifiOff'),
+    X: createIcon('X'),
     XCircle: createIcon('XCircle'),
+    Zap: createIcon('Zap'),
   };
 });
+

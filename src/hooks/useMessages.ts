@@ -2,14 +2,21 @@ import {useCallback, useEffect, useMemo, useState} from 'react';
 
 import {localAssignmentMessageSender} from '../api/messagesApi';
 import {
+  applyServerAuthoritativeMessage,
   enqueueMessage,
   getAllMessagesForSession,
+  getMessageByClientId,
   getSessionMessageCount,
   retryMessage,
   seedMessagesForSession,
 } from '../queue/messageQueue';
 import {runSyncProcessor} from '../queue/syncProcessor';
+import {markSyncFailed, markSyncStarted, markSyncSucceeded} from '../sync/syncStatusStore';
+import {FOREGROUND_TASK_ID} from '../sync/taskIds';
 import type {MessagePriority, MessageRecord} from '../types/message';
+import type {ServerMessageSnapshot} from '../types/conflict';
+
+export type ConflictStrategy = 'keepLocal' | 'keepServer';
 
 export interface UseMessagesOptions {
   sessionId: string;
@@ -24,14 +31,15 @@ export interface UseMessagesResult {
   loadedCount: number;
   sendMessage: (body: string, priority?: MessagePriority) => Promise<void>;
   retryQueuedMessage: (clientId: string) => Promise<void>;
+  resolveConflict: (clientId: string, strategy: ConflictStrategy) => void;
   syncNow: () => Promise<void>;
   seedMessages: (count: number) => Promise<void>;
   refreshMessages: () => void;
   loadMoreMessages: () => void;
 }
 
-const INITIAL_MESSAGE_PAGE_SIZE = 120;
-const MESSAGE_PAGE_INCREMENT = 160;
+const INITIAL_MESSAGE_PAGE_SIZE = 200;
+const MESSAGE_PAGE_INCREMENT = 200;
 
 export function useMessages(options: UseMessagesOptions): UseMessagesResult {
   const [messages, setMessages] = useState<MessageRecord[]>([]);
@@ -52,9 +60,14 @@ export function useMessages(options: UseMessagesOptions): UseMessagesResult {
 
   const syncNow = useCallback(async () => {
     setBusy(true);
+    const now = Date.now();
+    markSyncStarted({source: 'foreground', taskId: FOREGROUND_TASK_ID, startedAt: now});
     try {
-      await runSyncProcessor({sender: localAssignmentMessageSender});
+      const summary = await runSyncProcessor({sender: localAssignmentMessageSender});
+      markSyncSucceeded({source: 'foreground', taskId: FOREGROUND_TASK_ID, finishedAt: Date.now(), summary});
       refreshMessages();
+    } catch (error: unknown) {
+      markSyncFailed({source: 'foreground', taskId: FOREGROUND_TASK_ID, finishedAt: Date.now(), error});
     } finally {
       setBusy(false);
     }
@@ -68,17 +81,28 @@ export function useMessages(options: UseMessagesOptions): UseMessagesResult {
         return;
       }
 
-      enqueueMessage({
+      const record = enqueueMessage({
         sessionId: options.sessionId,
         senderId: options.senderId,
         body: trimmedBody,
         priority,
       });
-      refreshMessages();
+
+      // Prepend directly — avoids a full DB read just to show the new bubble.
+      setMessages(prev => [record, ...prev]);
+      setMessageCount(prev => prev + 1);
+
       runSyncProcessor({sender: localAssignmentMessageSender})
-        .then(refreshMessages)
+        .then(summary => {
+          if (summary.started) {
+            markSyncSucceeded({source: 'foreground', taskId: FOREGROUND_TASK_ID, finishedAt: Date.now(), summary});
+            refreshMessages();
+          }
+        })
         .catch(error => {
           console.warn('[useMessages] background send sync failed', error);
+          markSyncFailed({source: 'foreground', taskId: FOREGROUND_TASK_ID, finishedAt: Date.now(), error});
+          refreshMessages();
         });
     },
     [options.senderId, options.sessionId, refreshMessages],
@@ -91,6 +115,34 @@ export function useMessages(options: UseMessagesOptions): UseMessagesResult {
       await syncNow();
     },
     [refreshMessages, syncNow],
+  );
+
+  const resolveConflict = useCallback(
+    (clientId: string, strategy: ConflictStrategy) => {
+      const message = getMessageByClientId(clientId);
+
+      if (message === null) {
+        return;
+      }
+
+      if (strategy === 'keepServer' && message.conflictServerBody !== null) {
+        const snapshot: ServerMessageSnapshot = {
+          clientId: message.clientId,
+          serverId: message.serverId ?? `srv_${message.clientId}`,
+          serverBody: message.conflictServerBody,
+          serverCreatedAt: message.createdAtServer ?? Date.now(),
+          serverUpdatedAt: message.conflictServerUpdatedAt ?? Date.now(),
+          serverVersion: message.conflictServerVersion ?? 1,
+        };
+        applyServerAuthoritativeMessage(snapshot);
+      } else {
+        // keepLocal — re-queue with local body for re-send
+        retryMessage({clientId});
+      }
+
+      refreshMessages();
+    },
+    [refreshMessages],
   );
 
   const seedMessages = useCallback(
@@ -134,6 +186,7 @@ export function useMessages(options: UseMessagesOptions): UseMessagesResult {
       loadedCount: messages.length,
       sendMessage,
       retryQueuedMessage,
+      resolveConflict,
       syncNow,
       seedMessages,
       refreshMessages,
@@ -146,6 +199,7 @@ export function useMessages(options: UseMessagesOptions): UseMessagesResult {
       messageCount,
       messages,
       refreshMessages,
+      resolveConflict,
       retryQueuedMessage,
       seedMessages,
       sendMessage,

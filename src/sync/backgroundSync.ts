@@ -80,6 +80,11 @@ export async function registerBackgroundSync(): Promise<BackgroundSyncRegistrati
     },
   );
 
+  // On iOS, BGProcessingTask scheduling via the library requires AppDelegate
+  // wiring that conflicts with our native BackgroundSyncScheduler.swift, which
+  // already registers com.offlinefirstmessaging.sync.processing directly via
+  // BGTaskScheduler. Swallow the library error so the registration succeeds and
+  // the BGAppRefreshTask (legacy fetch path) remains active.
   const taskConfig: TaskConfig = {
     taskId: IOS_BG_PROCESSING_TASK_ID,
     delay: BACKGROUND_SYNC_TASK_DELAY_MS,
@@ -90,7 +95,13 @@ export async function registerBackgroundSync(): Promise<BackgroundSyncRegistrati
     startOnBoot: true,
   };
 
-  const customTaskScheduled = await BackgroundFetch.scheduleTask(taskConfig);
+  let customTaskScheduled = false;
+  try {
+    customTaskScheduled = await BackgroundFetch.scheduleTask(taskConfig);
+  } catch {
+    // Expected on iOS: the library's BGProcessingTask path requires AppDelegate
+    // registration. Our native Swift scheduler handles this task independently.
+  }
 
   registered = true;
   lastCustomTaskScheduled = customTaskScheduled;

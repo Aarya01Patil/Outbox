@@ -18,7 +18,7 @@ export interface SyncProcessorConfig {
 
 export interface SyncSummary {
   started: boolean;
-  skippedReason: 'already-syncing' | 'circuit-open' | null;
+  skippedReason: 'already-syncing' | 'circuit-open' | 'offline' | null;
   processed: number;
   sent: number;
   retried: number;

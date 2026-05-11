@@ -3,7 +3,8 @@ import type {SyncSummary} from '../types/sync';
 export type SyncRunSource =
   | 'background-fetch'
   | 'background-fetch-headless'
-  | 'work-manager';
+  | 'work-manager'
+  | 'foreground';
 
 export type SyncStatusPhase = 'idle' | 'running' | 'succeeded' | 'failed' | 'timed-out';
 

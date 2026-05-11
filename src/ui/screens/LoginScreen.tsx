@@ -15,7 +15,7 @@ import {
 import Video from 'react-native-video';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {colors, spacing, touchTarget, typography} from '../theme';
+import {colors, radius, spacing, touchTarget, typography} from '../theme';
 
 const loginVideo = require('../../assets/outbox-login.mp4') as number;
 const loginPoster = require('../../assets/outbox-login-poster.png') as number;
@@ -31,6 +31,15 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const [videoReady, setVideoReady] = useState(false);
 
+  // Staggered entrance animations
+  const headerFade = useRef(new Animated.Value(0)).current;
+  const headerSlide = useRef(new Animated.Value(20)).current;
+  const contentFade = useRef(new Animated.Value(0)).current;
+  const contentSlide = useRef(new Animated.Value(30)).current;
+  const buttonScale = useRef(new Animated.Value(0.9)).current;
+  const buttonFade = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', setAppState);
 
@@ -39,6 +48,77 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
     };
   }, []);
 
+  useEffect(() => {
+    // Staggered entrance
+    Animated.stagger(120, [
+      Animated.parallel([
+        Animated.timing(headerFade, {
+          toValue: 1,
+          duration: 500,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(headerSlide, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(contentFade, {
+          toValue: 1,
+          duration: 500,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentSlide, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.spring(buttonScale, {
+          toValue: 1,
+          damping: 12,
+          stiffness: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(buttonFade, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    // Continuous gentle pulse on the CTA
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.02,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    pulse.start();
+
+    return () => {
+      pulse.stop();
+    };
+  }, [headerFade, headerSlide, contentFade, contentSlide, buttonScale, buttonFade, pulseAnim]);
+
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safeArea}>
@@ -46,6 +126,7 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          {/* Video hero */}
           <View style={styles.mediaFrame}>
             <Video
               source={loginVideoSource}
@@ -64,7 +145,9 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
             {!videoReady ? (
               <Image source={loginPoster} resizeMode="cover" style={styles.poster} />
             ) : null}
-            <View style={styles.mediaOverlay} />
+            {/* Gradient overlay */}
+            <View style={styles.mediaOverlayTop} />
+            <View style={styles.mediaOverlayBottom} />
             <MotionPreview />
             <View style={styles.mediaHeader}>
               <View style={styles.wordmarkPill}>
@@ -73,43 +156,81 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
             </View>
           </View>
 
-          <View style={styles.panel}>
+          {/* Content panel */}
+          <Animated.View
+            style={[
+              styles.panel,
+              {
+                opacity: headerFade,
+                transform: [{translateY: headerSlide}],
+              },
+            ]}
+          >
             <Text accessibilityRole="header" style={styles.title}>
-              Offline-first messaging
+              Offline-first{'\n'}messaging
             </Text>
             <Text style={styles.body}>
-              Send immediately, sync safely, and resolve conflicts without losing
-              local work.
+              Send immediately. Sync safely. Resolve conflicts without losing
+              your local work.
             </Text>
+          </Animated.View>
 
-            <View style={styles.featureList}>
-              <FeatureRow
-                icon={<Database color={colors.primary} size={18} strokeWidth={2.2} />}
-                title="Durable local outbox"
-                detail="Messages persist before the network is involved."
-              />
-              <FeatureRow
-                icon={<RefreshCw color={colors.primary} size={18} strokeWidth={2.2} />}
-                title="Background recovery"
-                detail="Queued work resumes when the OS gives the app time."
-              />
-              <FeatureRow
-                icon={<Shield color={colors.primary} size={18} strokeWidth={2.2} />}
-                title="Conflict-aware sync"
-                detail="Server-authoritative updates still preserve local intent."
-              />
-            </View>
+          {/* Feature cards */}
+          <Animated.View
+            style={[
+              styles.featureList,
+              {
+                opacity: contentFade,
+                transform: [{translateY: contentSlide}],
+              },
+            ]}
+          >
+            <FeatureCard
+              icon={<Database color={colors.primary} size={18} strokeWidth={2.2} />}
+              title="Durable local outbox"
+              detail="Messages persist instantly before the network is involved."
+              accentColor={colors.primaryGlow}
+              index={0}
+            />
+            <FeatureCard
+              icon={<RefreshCw color={colors.success} size={18} strokeWidth={2.2} />}
+              title="Background recovery"
+              detail="Queued work resumes when the OS gives the app time."
+              accentColor={colors.successGlow}
+              index={1}
+            />
+            <FeatureCard
+              icon={<Shield color={colors.conflict} size={18} strokeWidth={2.2} />}
+              title="Conflict-aware sync"
+              detail="Server-authoritative updates still preserve your local intent."
+              accentColor={colors.conflictGlow}
+              index={2}
+            />
+          </Animated.View>
 
+          {/* CTA */}
+          <Animated.View
+            style={[
+              styles.ctaContainer,
+              {
+                opacity: buttonFade,
+                transform: [{scale: Animated.multiply(buttonScale, pulseAnim)}],
+              },
+            ]}
+          >
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Enter chat"
               onPress={onEnter}
-              style={styles.enterButton}
+              style={({pressed}) => [
+                styles.enterButton,
+                pressed && styles.enterPressed,
+              ]}
             >
               <LogIn color={colors.background} size={20} strokeWidth={2.4} />
               <Text style={styles.enterText}>Enter chat</Text>
             </Pressable>
-          </View>
+          </Animated.View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -194,21 +315,53 @@ function MotionPreview(): React.JSX.Element {
   );
 }
 
-interface FeatureRowProps {
+interface FeatureCardProps {
   icon: React.JSX.Element;
   title: string;
   detail: string;
+  accentColor: string;
+  index: number;
 }
 
-function FeatureRow({icon, title, detail}: FeatureRowProps): React.JSX.Element {
+function FeatureCard({icon, title, detail, accentColor, index}: FeatureCardProps): React.JSX.Element {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        delay: 400 + index * 100,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 400,
+        delay: 400 + index * 100,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <View style={styles.featureRow}>
-      <View style={styles.featureIcon}>{icon}</View>
+    <Animated.View
+      style={[
+        styles.featureCard,
+        {opacity: fadeAnim, transform: [{translateY: slideAnim}]},
+      ]}
+    >
+      <View style={[styles.featureIcon, {backgroundColor: accentColor}]}>
+        {icon}
+      </View>
       <View style={styles.featureCopy}>
         <Text style={styles.featureTitle}>{title}</Text>
         <Text style={styles.featureDetail}>{detail}</Text>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -229,15 +382,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xxl,
     gap: spacing.xl,
   },
   mediaFrame: {
-    height: 300,
-    borderRadius: 10,
+    height: 280,
+    borderRadius: radius.lg,
     overflow: 'hidden',
     backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
@@ -257,13 +409,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  mediaOverlay: {
+  mediaOverlayTop: {
     position: 'absolute',
     top: 0,
     right: 0,
+    left: 0,
+    height: 80,
+    backgroundColor: 'transparent',
+    // Simulated top gradient via opacity
+    opacity: 0.6,
+  },
+  mediaOverlayBottom: {
+    position: 'absolute',
+    right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: colors.overlay,
+    height: 120,
+    backgroundColor: colors.background,
+    opacity: 0.7,
   },
   motionLayer: {
     position: 'absolute',
@@ -278,34 +441,34 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   motionBubble: {
-    height: 42,
-    borderRadius: 8,
+    height: 38,
+    borderRadius: radius.sm,
     borderWidth: StyleSheet.hairlineWidth,
   },
   motionBubbleIncoming: {
     alignSelf: 'flex-start',
     width: '58%',
-    backgroundColor: 'rgba(243, 247, 252, 0.12)',
-    borderColor: 'rgba(243, 247, 252, 0.24)',
+    backgroundColor: 'rgba(243, 247, 252, 0.1)',
+    borderColor: 'rgba(243, 247, 252, 0.2)',
   },
   motionBubbleOutgoing: {
     alignSelf: 'flex-end',
     width: '70%',
-    backgroundColor: 'rgba(49, 181, 255, 0.32)',
-    borderColor: 'rgba(49, 181, 255, 0.54)',
+    backgroundColor: 'rgba(49, 181, 255, 0.25)',
+    borderColor: 'rgba(49, 181, 255, 0.45)',
   },
   motionBubblePending: {
     alignSelf: 'flex-end',
     width: '48%',
-    backgroundColor: 'rgba(53, 211, 154, 0.18)',
-    borderColor: 'rgba(53, 211, 154, 0.4)',
+    backgroundColor: 'rgba(53, 211, 154, 0.15)',
+    borderColor: 'rgba(53, 211, 154, 0.35)',
   },
   motionRail: {
     height: 2,
     marginTop: spacing.xl,
     overflow: 'hidden',
     borderRadius: 1,
-    backgroundColor: 'rgba(134, 160, 188, 0.28)',
+    backgroundColor: 'rgba(134, 160, 188, 0.2)',
   },
   motionPacket: {
     width: 76,
@@ -320,59 +483,64 @@ const styles = StyleSheet.create({
   },
   wordmarkPill: {
     alignSelf: 'flex-start',
-    minHeight: 34,
+    minHeight: 32,
     paddingHorizontal: spacing.md,
-    borderRadius: 999,
-    backgroundColor: 'rgba(7, 17, 31, 0.72)',
+    borderRadius: radius.pill,
+    backgroundColor: colors.glassBg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
+    borderColor: colors.glassBorder,
     justifyContent: 'center',
   },
   wordmark: {
     color: colors.primary,
-    fontSize: typography.label,
+    fontSize: typography.caption,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0,
+    letterSpacing: 1,
   },
   panel: {
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   title: {
     color: colors.text,
-    fontSize: 28,
+    fontSize: typography.hero,
     fontWeight: '900',
-    letterSpacing: 0,
+    letterSpacing: -0.5,
+    lineHeight: 40,
   },
   body: {
     color: colors.textMuted,
     fontSize: typography.body,
     lineHeight: 24,
     marginTop: spacing.md,
-    maxWidth: 360,
+    maxWidth: 340,
   },
   featureList: {
-    marginTop: spacing.xl,
-    gap: spacing.md,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
-  featureRow: {
+  featureCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   featureIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm + 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceElevated,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
   featureCopy: {
     flex: 1,
-    gap: spacing.xs,
+    gap: 2,
   },
   featureTitle: {
     color: colors.text,
@@ -381,18 +549,24 @@ const styles = StyleSheet.create({
   },
   featureDetail: {
     color: colors.textSubtle,
-    fontSize: typography.label,
-    lineHeight: 18,
+    fontSize: typography.caption,
+    lineHeight: 16,
+  },
+  ctaContainer: {
+    paddingHorizontal: spacing.xs,
   },
   enterButton: {
-    minHeight: touchTarget.minHeight,
-    marginTop: spacing.xl,
+    minHeight: touchTarget.minHeight + 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    borderRadius: 16,
+    borderRadius: radius.md,
     backgroundColor: colors.primary,
+  },
+  enterPressed: {
+    backgroundColor: colors.primaryDark,
+    transform: [{scale: 0.97}],
   },
   enterText: {
     color: colors.background,

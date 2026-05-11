@@ -1,9 +1,9 @@
 import {AlertCircle, CheckCircle2, Loader2} from 'lucide-react-native';
-import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import React, {useEffect, useRef} from 'react';
+import {Animated, Easing, StyleSheet, Text, View} from 'react-native';
 
 import type {SyncStatusSnapshot} from '../../sync/syncStatusStore';
-import {colors, spacing, typography} from '../theme';
+import {colors, radius, spacing, typography} from '../theme';
 
 export interface SyncIndicatorProps {
   status: SyncStatusSnapshot;
@@ -20,7 +20,7 @@ export function SyncIndicator({status}: SyncIndicatorProps): React.JSX.Element {
       accessibilityRole="text"
       style={[styles.container, getContainerStyle(tone)]}
     >
-      <SyncIcon tone={tone} />
+      <SyncIcon tone={tone} spinning={status.phase === 'running'} />
       <Text ellipsizeMode="tail" numberOfLines={1} style={[styles.text, styles[tone]]}>
         {label}
       </Text>
@@ -28,21 +28,83 @@ export function SyncIndicator({status}: SyncIndicatorProps): React.JSX.Element {
   );
 }
 
-function SyncIcon({tone}: {tone: 'muted' | 'success' | 'warning' | 'danger'}): React.JSX.Element {
+function SyncIcon({
+  tone,
+  spinning,
+}: {
+  tone: 'muted' | 'success' | 'warning' | 'danger';
+  spinning: boolean;
+}): React.JSX.Element {
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    if (spinning) {
+      const rotation = Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      );
+
+      rotation.start();
+
+      return () => {
+        rotation.stop();
+        rotateAnim.setValue(0);
+      };
+    }
+
+    rotateAnim.setValue(0);
+    return undefined;
+  }, [spinning, rotateAnim]);
+
+  useEffect(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      damping: 14,
+      stiffness: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [tone, scaleAnim]);
+
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
   if (tone === 'success') {
-    return <CheckCircle2 color={colors.success} size={16} strokeWidth={2.2} />;
+    return (
+      <Animated.View style={{transform: [{scale: scaleAnim}]}}>
+        <CheckCircle2 color={colors.success} size={14} strokeWidth={2.2} />
+      </Animated.View>
+    );
   }
 
   if (tone === 'danger') {
-    return <AlertCircle color={colors.danger} size={16} strokeWidth={2.2} />;
+    return (
+      <Animated.View style={{transform: [{scale: scaleAnim}]}}>
+        <AlertCircle color={colors.danger} size={14} strokeWidth={2.2} />
+      </Animated.View>
+    );
   }
 
-  return <Loader2 color={tone === 'warning' ? colors.warning : colors.textSubtle} size={16} strokeWidth={2.2} />;
+  const iconColor = tone === 'warning' ? colors.warning : colors.textSubtle;
+
+  return (
+    <Animated.View
+      style={spinning ? {transform: [{rotate: spin}]} : undefined}
+    >
+      <Loader2 color={iconColor} size={14} strokeWidth={2.2} />
+    </Animated.View>
+  );
 }
 
 function getSyncLabel(status: SyncStatusSnapshot): string {
   if (status.phase === 'running') {
-    return 'Syncing queue';
+    return 'Syncing…';
   }
 
   if (status.phase === 'failed') {
@@ -114,20 +176,21 @@ function getContainerStyle(tone: 'muted' | 'success' | 'warning' | 'danger') {
 
 const styles = StyleSheet.create({
   container: {
-    minHeight: 32,
+    minHeight: 30,
     maxWidth: 176,
     paddingHorizontal: spacing.md,
-    borderRadius: 999,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 6,
     backgroundColor: colors.surface,
     borderColor: colors.border,
   },
   text: {
     flexShrink: 1,
-    fontSize: typography.label,
+    fontSize: typography.caption,
     fontWeight: '700',
   },
   mutedContainer: {
@@ -135,16 +198,16 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   successContainer: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: colors.successGlow,
+    borderColor: 'rgba(53, 211, 154, 0.3)',
   },
   warningContainer: {
     backgroundColor: colors.surface,
     borderColor: colors.borderStrong,
   },
   dangerContainer: {
-    backgroundColor: colors.surface,
-    borderColor: colors.danger,
+    backgroundColor: colors.dangerGlow,
+    borderColor: 'rgba(255, 124, 119, 0.3)',
   },
   muted: {
     color: colors.textSubtle,

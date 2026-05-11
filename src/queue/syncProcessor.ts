@@ -1,9 +1,12 @@
+import NetInfo from '@react-native-community/netinfo';
+
 import {
   getPendingBatch,
   markMessageForRetry,
   markMessagePermanentlyFailed,
   markMessageSending,
   markMessageSent,
+  resetStuckMessages,
 } from './messageQueue';
 import {
   isMessageConflictError,
@@ -77,9 +80,23 @@ export async function runSyncProcessor(options: RunSyncOptions): Promise<SyncSum
     return createEmptySummary('already-syncing');
   }
 
+  // Network gate: skip sync when offline to avoid wasting retry budget
+  try {
+    const netState = await NetInfo.fetch();
+
+    if (netState.isConnected !== true) {
+      return createEmptySummary('offline');
+    }
+  } catch {
+    // NetInfo can fail in headless/background — continue with sync attempt
+  }
+
   if (circuitBreaker.openUntil > startedAt) {
     return createEmptySummary('circuit-open', circuitBreaker.openUntil);
   }
+
+  // Recover any messages stuck in 'sending' from a previous crash/kill
+  resetStuckMessages();
 
   isSyncing = true;
 
@@ -287,7 +304,7 @@ function positiveInteger(value: number | undefined, fallback: number): number {
 }
 
 function createEmptySummary(
-  skippedReason: SyncSummary['skippedReason'],
+  skippedReason: SyncSummary['skippedReason'] = null,
   circuitOpenUntil: number | null = null,
 ): SyncSummary {
   return {

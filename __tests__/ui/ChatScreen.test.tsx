@@ -30,14 +30,18 @@ describe('ChatScreen', () => {
   const retryQueuedMessage = jest.fn<Promise<void>, [string]>(
     async () => undefined,
   );
+  const resolveConflict = jest.fn<void, [string, string]>();
   const syncNow = jest.fn<Promise<void>, []>(async () => undefined);
   const seedMessages = jest.fn<Promise<void>, [number]>(async () => undefined);
+  const onBack = jest.fn<void, []>();
 
   beforeEach(() => {
     sendMessage.mockClear();
     retryQueuedMessage.mockClear();
+    resolveConflict.mockClear();
     syncNow.mockClear();
     seedMessages.mockClear();
+    onBack.mockClear();
     mockUseMessages.mockReturnValue({
       messages: [createMessage({status: 'failed'})],
       loading: false,
@@ -46,6 +50,7 @@ describe('ChatScreen', () => {
       loadedCount: 1,
       sendMessage,
       retryQueuedMessage,
+      resolveConflict,
       syncNow,
       seedMessages,
       refreshMessages: jest.fn(),
@@ -59,27 +64,64 @@ describe('ChatScreen', () => {
     mockUseSyncStatus.mockReturnValue(createSyncStatus({phase: 'idle'}));
   });
 
-  it('sends, retries, syncs, and seeds from visible controls', () => {
-    render(<ChatScreen />);
+  it('sends, retries, syncs from visible controls', () => {
+    render(
+      <ChatScreen
+        sessionId="test-session"
+        sessionName="Test"
+        onBack={onBack}
+      />,
+    );
 
     fireEvent.changeText(screen.getByLabelText('Message body'), 'hello');
     fireEvent.press(screen.getByRole('button', {name: 'Send message'}));
     fireEvent.press(screen.getByRole('button', {name: 'Retry message message-1'}));
     fireEvent.press(screen.getByRole('button', {name: 'Sync now'}));
-    fireEvent.press(screen.getByRole('button', {name: 'Seed 10000 messages'}));
 
     expect(sendMessage).toHaveBeenCalledWith('hello');
     expect(retryQueuedMessage).toHaveBeenCalledWith('message-1');
     expect(syncNow).toHaveBeenCalledTimes(1);
-    expect(seedMessages).toHaveBeenCalledWith(10_000);
   });
 
   it('passes estimatedItemSize to FlashList for 10k performance', () => {
-    render(<ChatScreen />);
+    render(
+      <ChatScreen
+        sessionId="test-session"
+        sessionName="Test"
+        onBack={onBack}
+      />,
+    );
 
     const flatList = screen.UNSAFE_getByType(FlatList);
     expect(flatList.props.estimatedItemSize).toBe(112);
     expect(flatList.props.inverted).toBe(true);
+  });
+
+  it('calls onBack when back button is pressed', () => {
+    render(
+      <ChatScreen
+        sessionId="test-session"
+        sessionName="Test"
+        onBack={onBack}
+      />,
+    );
+
+    fireEvent.press(
+      screen.getByRole('button', {name: 'Go back to conversations'}),
+    );
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows session name in header', () => {
+    render(
+      <ChatScreen
+        sessionId="test-session"
+        sessionName="Work Chat"
+        onBack={onBack}
+      />,
+    );
+
+    expect(screen.getByText('Work Chat')).toBeTruthy();
   });
 });
 
