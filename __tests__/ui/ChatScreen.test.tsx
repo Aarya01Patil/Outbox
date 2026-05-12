@@ -93,7 +93,8 @@ describe('ChatScreen', () => {
     );
 
     const flatList = screen.UNSAFE_getByType(FlatList);
-    expect(flatList.props.estimatedItemSize).toBe(112);
+    // 80 px = single-line bubble height after padding; calibrated against MessageRow.
+    expect(flatList.props.estimatedItemSize).toBe(80);
     expect(flatList.props.inverted).toBe(true);
   });
 

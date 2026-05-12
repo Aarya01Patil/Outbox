@@ -11,7 +11,7 @@ import React, {memo, useEffect, useMemo, useRef} from 'react';
 import {Animated, Easing, Pressable, StyleSheet, Text, View} from 'react-native';
 
 import type {MessageRecord, MessageStatus} from '../../types/message';
-import {colors, radius, spacing, touchTarget, typography} from '../theme';
+import {colors, radius, spacing, typography} from '../theme';
 import {formatMessageTime} from '../utils/time';
 
 export interface MessageRowProps {

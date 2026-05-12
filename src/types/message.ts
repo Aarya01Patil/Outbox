@@ -10,10 +10,6 @@ export type MessagePriority = 'high' | 'normal' | 'low';
 
 export type MessageDirection = 'outgoing' | 'incoming';
 
-export type ISODateTimeString = string;
-export type MessageId = string;
-export type UserId = string;
-
 export interface MessageRecord {
   clientId: string;
   serverId: string | null;
@@ -39,8 +35,6 @@ export interface MessageRecord {
   conflictServerUpdatedAt: number | null;
   conflictServerVersion: number | null;
 }
-
-export type Message = MessageRecord;
 
 export interface CreateQueuedMessageInput {
   sessionId: string;

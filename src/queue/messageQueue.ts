@@ -506,6 +506,7 @@ function evictOverflowForSession(sessionId: string, maxMessages: number): void {
   executeSync(`DELETE FROM messages WHERE client_id IN (${placeholders});`, ids);
 }
 
+/* eslint-disable no-bitwise -- RFC 4122 v4 byte manipulation requires bitwise ops. */
 function generateUUID(): string {
   // Prefer Web Crypto (Hermes 0.11+ / RN 0.71+) for cryptographic randomness.
   // Fall back to Math.random so message IDs are still unique on devices where
@@ -527,6 +528,7 @@ function generateUUID(): string {
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
 }
+/* eslint-enable no-bitwise */
 
 function createClientMessageId(now: number): string {
   return `msg_${now}_${generateUUID()}`;

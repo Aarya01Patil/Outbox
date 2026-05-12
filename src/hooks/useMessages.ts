@@ -100,7 +100,9 @@ export function useMessages(options: UseMessagesOptions): UseMessagesResult {
           }
         })
         .catch(error => {
-          console.warn('[useMessages] background send sync failed', error);
+          if (__DEV__) {
+            console.warn('[useMessages] background send sync failed', error);
+          }
           markSyncFailed({source: 'foreground', taskId: FOREGROUND_TASK_ID, finishedAt: Date.now(), error});
           refreshMessages();
         });

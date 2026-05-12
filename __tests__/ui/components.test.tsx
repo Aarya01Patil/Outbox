@@ -33,16 +33,23 @@ describe('Part D UI components', () => {
     expect(screen.getByText('Conflict')).toBeTruthy();
     expect(screen.getByText('Server version')).toBeTruthy();
     expect(screen.getByText('Server copy wins')).toBeTruthy();
-    expect(screen.getByRole('button', {name: 'Retry message message-1'})).toBeTruthy();
+    // Conflicted messages expose a "Resolve Conflict" CTA that opens the
+    // ConflictSheet (keep mine vs accept server). The plain Retry button is
+    // intentionally hidden for this state.
+    expect(
+      screen.getByRole('button', {name: 'Resolve conflict message-1'}),
+    ).toBeTruthy();
   });
 
   it('renders offline and online network states', () => {
     const {rerender} = render(<OfflineBanner isConnected={false} />);
 
-    expect(screen.getByText('Offline queue active')).toBeTruthy();
+    expect(screen.getByText('Offline — queuing locally')).toBeTruthy();
 
     rerender(<OfflineBanner isConnected />);
-    expect(screen.getByText('Online')).toBeTruthy();
+    // Online state shows only the wifi icon by default; explicit label appears
+    // in compact={false} mode used by ConversationsScreen.
+    expect(screen.queryByText('Online')).toBeTruthy();
   });
 
   it('summarizes running and conflicted sync state', () => {
@@ -50,7 +57,7 @@ describe('Part D UI components', () => {
       <SyncIndicator status={createSyncStatus({phase: 'running'})} />,
     );
 
-    expect(screen.getByText('Syncing queue')).toBeTruthy();
+    expect(screen.getByText('Syncing…')).toBeTruthy();
 
     rerender(
       <SyncIndicator

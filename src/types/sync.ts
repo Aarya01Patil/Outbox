@@ -1,10 +1,5 @@
 import type {QueueCandidate, SentMessageReceipt} from './message';
 
-export interface SyncCursor {
-  value: string;
-  issuedAt: number;
-}
-
 export interface SyncProcessorConfig {
   batchSize: number;
   maxBatchesPerRun: number;

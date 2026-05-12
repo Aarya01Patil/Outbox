@@ -77,7 +77,9 @@ export function ChatScreen({
   const handleRetry = useCallback(
     (clientId: string) => {
       retryQueuedMessage(clientId).catch(error => {
-        console.warn('[ChatScreen] retry failed', error);
+        if (__DEV__) {
+          console.warn('[ChatScreen] retry failed', error);
+        }
       });
     },
     [retryQueuedMessage],
@@ -102,13 +104,17 @@ export function ChatScreen({
 
   const handleSyncNow = useCallback(() => {
     syncNow().catch(error => {
-      console.warn('[ChatScreen] manual sync failed', error);
+      if (__DEV__) {
+        console.warn('[ChatScreen] manual sync failed', error);
+      }
     });
   }, [syncNow]);
 
   const handleSeed = useCallback(() => {
     seedMessages(10_000).catch(error => {
-      console.warn('[ChatScreen] seed failed', error);
+      if (__DEV__) {
+        console.warn('[ChatScreen] seed failed', error);
+      }
     });
   }, [seedMessages]);
 
@@ -263,7 +269,9 @@ const ChatComposer = memo(function ChatComposer({
     const message = draft;
     setDraft('');
     onSend(message).catch((error: unknown) => {
-      console.warn('[ChatScreen] send failed', error);
+      if (__DEV__) {
+        console.warn('[ChatScreen] send failed', error);
+      }
       setDraft(message);
     });
   }, [draft, onSend]);

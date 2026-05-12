@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {StatusBar, View} from 'react-native';
+import {StatusBar, StyleSheet, View} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 
 import {assertDurabilityPragmas, initializeDatabase} from './src/db/database';
@@ -35,11 +35,15 @@ function App(): React.JSX.Element {
     try {
       bootstrapPartA();
     } catch (e) {
-      console.warn('[App] DB bootstrap error', e);
+      if (__DEV__) {
+        console.warn('[App] DB bootstrap error', e);
+      }
     }
     setAppReady(true);
     registerBackgroundSync().catch(error => {
-      console.warn('[BackgroundSync] registration failed', error);
+      if (__DEV__) {
+        console.warn('[BackgroundSync] registration failed', error);
+      }
     });
   }, []);
 
@@ -60,11 +64,11 @@ function App(): React.JSX.Element {
   }, []);
 
   if (!appReady) {
-    return <View style={{flex: 1, backgroundColor: colors.background}} />;
+    return <View style={styles.splash} />;
   }
 
   return (
-    <SafeAreaProvider style={{flex: 1, backgroundColor: colors.background}}>
+    <SafeAreaProvider style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       {screen === 'login' ? (
         <LoginScreen onEnter={handleEnter} />
@@ -80,5 +84,18 @@ function App(): React.JSX.Element {
     </SafeAreaProvider>
   );
 }
+
+// Splash + root share the same dark background so iOS does not flash white
+// between native splash teardown and first React paint.
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  splash: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+});
 
 export default App;

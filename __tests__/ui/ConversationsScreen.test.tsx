@@ -1,5 +1,5 @@
 import React from 'react';
-import {render, screen, fireEvent, act} from '@testing-library/react-native';
+import {render, screen, fireEvent} from '@testing-library/react-native';
 
 import {ConversationsScreen} from '../../src/ui/screens/ConversationsScreen';
 
@@ -37,34 +37,21 @@ jest.mock('../../src/hooks/useSyncStatus', () => ({
 }));
 
 describe('ConversationsScreen', () => {
-  it('shows skeleton loader initially then conversation cards', async () => {
-    const onSelect = jest.fn<void, [string, string]>();
+  it('renders all four preset conversation cards from SQLite-backed counts', () => {
+    // op-sqlite reads are synchronous on the native side, so the screen flips
+    // out of its loading state inside the same render cycle. No skeleton flash.
+    render(<ConversationsScreen onSelectConversation={jest.fn()} />);
 
-    render(<ConversationsScreen onSelectConversation={onSelect} />);
-
-    // Initially shows skeleton
-    expect(screen.getByLabelText('Loading conversations')).toBeTruthy();
-
-    // Wait for loading to complete
-    await act(async () => {
-      await new Promise<void>(resolve => setTimeout(resolve, 700));
-    });
-
-    // Should show conversation names
     expect(screen.getByText('General')).toBeTruthy();
     expect(screen.getByText('Work')).toBeTruthy();
     expect(screen.getByText('Family')).toBeTruthy();
     expect(screen.getByText('Random')).toBeTruthy();
   });
 
-  it('navigates to chat when a conversation is tapped', async () => {
+  it('navigates to chat when a conversation is tapped', () => {
     const onSelect = jest.fn<void, [string, string]>();
 
     render(<ConversationsScreen onSelectConversation={onSelect} />);
-
-    await act(async () => {
-      await new Promise<void>(resolve => setTimeout(resolve, 700));
-    });
 
     fireEvent.press(
       screen.getByRole('button', {name: 'Open General conversation'}),
@@ -73,10 +60,8 @@ describe('ConversationsScreen', () => {
     expect(onSelect).toHaveBeenCalledWith('general-chat', 'General');
   });
 
-  it('displays the Conversations header', async () => {
-    render(
-      <ConversationsScreen onSelectConversation={jest.fn()} />,
-    );
+  it('displays the Conversations header', () => {
+    render(<ConversationsScreen onSelectConversation={jest.fn()} />);
 
     expect(screen.getByText('Conversations')).toBeTruthy();
   });
