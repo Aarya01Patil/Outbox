@@ -88,7 +88,7 @@ export async function runSyncProcessor(options: RunSyncOptions): Promise<SyncSum
       return createEmptySummary('offline');
     }
   } catch {
-    // NetInfo can fail in headless/background — continue with sync attempt
+    // NetInfo can fail in headless/background - continue with sync attempt
   }
 
   if (circuitBreaker.openUntil > startedAt) {
@@ -258,8 +258,11 @@ function readErrorMessage(error: unknown): string {
 
 function calculateBackoffMs(retryCount: number, config: SyncProcessorConfig): number {
   const exponent = Math.max(0, retryCount - 1);
-  const delay = config.baseBackoffMs * 2 ** exponent;
-  return Math.min(delay, config.maxBackoffMs);
+  const cap = Math.min(config.baseBackoffMs * 2 ** exponent, config.maxBackoffMs);
+  // Equal jitter: [cap/2, cap). Spreads retries so concurrent failures don't
+  // hammer the server in lock-step after the circuit closes.
+  const half = cap / 2;
+  return Math.floor(half + Math.random() * half);
 }
 
 function normalizeConfig(config?: Partial<SyncProcessorConfig>): SyncProcessorConfig {

@@ -11,29 +11,29 @@ export type MessagePriority = 'high' | 'normal' | 'low';
 export type MessageDirection = 'outgoing' | 'incoming';
 
 export interface MessageRecord {
-  clientId: string;
-  serverId: string | null;
-  sessionId: string;
-  senderId: string;
-  body: string;
-  direction: MessageDirection;
-  status: MessageStatus;
-  priority: MessagePriority;
-  idempotencyKey: string;
-  retryCount: number;
-  nextAttemptAt: number;
-  lastError: string | null;
-  createdAtClient: number;
-  updatedAtClient: number;
-  createdAtServer: number | null;
-  updatedAtServer: number | null;
-  serverVersion: number | null;
-  conflictedAt: number | null;
-  conflictReason: string | null;
-  conflictLocalBody: string | null;
-  conflictServerBody: string | null;
-  conflictServerUpdatedAt: number | null;
-  conflictServerVersion: number | null;
+  readonly clientId: string;
+  readonly serverId: string | null;
+  readonly sessionId: string;
+  readonly senderId: string;
+  readonly body: string;
+  readonly direction: MessageDirection;
+  readonly status: MessageStatus;
+  readonly priority: MessagePriority;
+  readonly idempotencyKey: string;
+  readonly retryCount: number;
+  readonly nextAttemptAt: number;
+  readonly lastError: string | null;
+  readonly createdAtClient: number;
+  readonly updatedAtClient: number;
+  readonly createdAtServer: number | null;
+  readonly updatedAtServer: number | null;
+  readonly serverVersion: number | null;
+  readonly conflictedAt: number | null;
+  readonly conflictReason: string | null;
+  readonly conflictLocalBody: string | null;
+  readonly conflictServerBody: string | null;
+  readonly conflictServerUpdatedAt: number | null;
+  readonly conflictServerVersion: number | null;
 }
 
 export interface CreateQueuedMessageInput {
@@ -47,22 +47,22 @@ export interface CreateQueuedMessageInput {
 }
 
 export interface QueueCandidate {
-  clientId: string;
-  sessionId: string;
-  body: string;
-  priority: MessagePriority;
-  idempotencyKey: string;
-  retryCount: number;
-  nextAttemptAt: number;
-  createdAtClient: number;
+  readonly clientId: string;
+  readonly sessionId: string;
+  readonly body: string;
+  readonly priority: MessagePriority;
+  readonly idempotencyKey: string;
+  readonly retryCount: number;
+  readonly nextAttemptAt: number;
+  readonly createdAtClient: number;
 }
 
 export interface SentMessageReceipt {
-  clientId: string;
-  serverId: string;
-  createdAtServer: number;
-  updatedAtServer: number;
-  serverVersion: number;
+  readonly clientId: string;
+  readonly serverId: string;
+  readonly createdAtServer: number;
+  readonly updatedAtServer: number;
+  readonly serverVersion: number;
 }
 
 export interface RetryMessageInput {

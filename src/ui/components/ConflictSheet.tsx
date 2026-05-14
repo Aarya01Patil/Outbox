@@ -107,10 +107,8 @@ export function ConflictSheet({
         <Animated.View
           style={[styles.sheet, {transform: [{translateY: slideAnim}]}]}
         >
-          {/* Handle bar */}
           <View style={styles.handleBar} />
 
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerIcon}>
               <AlertTriangle color={colors.conflict} size={22} strokeWidth={2.2} />
@@ -133,7 +131,6 @@ export function ConflictSheet({
             </Pressable>
           </View>
 
-          {/* Version comparison */}
           <View style={styles.comparison}>
             <View style={styles.versionCard}>
               <Text style={styles.versionLabel}>Your Version</Text>
@@ -158,7 +155,6 @@ export function ConflictSheet({
             </View>
           </View>
 
-          {/* Actions */}
           <View style={styles.actions}>
             <Pressable
               accessibilityRole="button"

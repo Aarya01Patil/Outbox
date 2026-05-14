@@ -95,16 +95,23 @@ describe('runSyncProcessor', () => {
       .mockReturnValueOnce([queueMessage])
       .mockReturnValueOnce([]);
 
-    const summary = await runSyncProcessor({sender, queue, now: () => 1_000});
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const summary = await runSyncProcessor({sender, queue, now: () => 1_000});
 
-    expect(summary.retried).toBe(1);
-    expect(mockMarkMessageForRetry).toHaveBeenCalledWith(
-      'message-1',
-      1,
-      2_000,
-      'network down',
-      1_000,
-    );
-    expect(getIsSyncing()).toBe(false);
+      expect(summary.retried).toBe(1);
+      // retry 1: cap = min(1000 * 2^0, 60000) = 1000; equal jitter with
+      // Math.random=0.5 -> floor(500 + 0.5 * 500) = 750; nextAttemptAt = now + 750
+      expect(mockMarkMessageForRetry).toHaveBeenCalledWith(
+        'message-1',
+        1,
+        1_750,
+        'network down',
+        1_000,
+      );
+      expect(getIsSyncing()).toBe(false);
+    } finally {
+      randomSpy.mockRestore();
+    }
   });
 });

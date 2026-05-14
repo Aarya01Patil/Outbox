@@ -1,19 +1,19 @@
 export interface ServerMessageSnapshot {
-  clientId: string;
-  serverId: string;
-  serverBody: string;
-  serverCreatedAt: number;
-  serverUpdatedAt: number;
-  serverVersion: number;
+  readonly clientId: string;
+  readonly serverId: string;
+  readonly serverBody: string;
+  readonly serverCreatedAt: number;
+  readonly serverUpdatedAt: number;
+  readonly serverVersion: number;
 }
 
 export type LastWriteWinsWinner = 'server' | 'local';
 
 export interface LastWriteWinsResolution {
-  clientId: string;
-  winner: LastWriteWinsWinner;
-  localTimestamp: number;
-  serverTimestamp: number;
-  resolvedBody: string;
-  serverVersion: number;
+  readonly clientId: string;
+  readonly winner: LastWriteWinsWinner;
+  readonly localTimestamp: number;
+  readonly serverTimestamp: number;
+  readonly resolvedBody: string;
+  readonly serverVersion: number;
 }

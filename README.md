@@ -157,7 +157,7 @@ Single `messages` table in SQLite, plus the four conflict columns added in migra
 | `status` | TEXT CHECK | `queued / sending / sent / delivered / failed / conflicted` |
 | `priority` | TEXT CHECK | `high / normal / low`; pending batch ordered by priority then FIFO |
 | `idempotency_key` | TEXT UNIQUE | `send:<clientId>`; server dedupes retries against this key |
-| `retry_count` | INTEGER | Drives exponential backoff (`base × 2^(n-1)`, capped at 60s) |
+| `retry_count` | INTEGER | Drives exponential backoff with equal jitter (`cap = min(base × 2^(n-1), 60s)`; actual delay drawn from `[cap/2, cap)`) |
 | `next_attempt_at` | INTEGER | Unix-ms gate so the processor doesn't re-pick a row before its backoff window |
 | `last_error` | TEXT | Surfaced under failed bubbles for debuggability |
 | `created_at_client` | INTEGER | Used for chat ordering (`ORDER BY created_at_client DESC`) |
@@ -246,21 +246,37 @@ PRAGMA synchronous = FULL;
 7. For *5-minute background*: press Home, wait 5 minutes, then bring the app back to foreground and wait 10 s before reading.
 8. Record **Persistent Bytes** on iOS or **Total PSS** on Android.
 
-All numbers below are from a physical **iPhone 15 Pro (iOS 17.2)** profile build with no Metro attached, and a physical **mid-range Android device (Android 13)**.
+iOS numbers below are from a physical **iPhone 15 Pro (iOS 17.2)** profile build with no Metro attached (Instruments capture at `docs/screenshots/ios-allocations.png`). Android numbers are captured on a **Poco F5 (Android 13)** release build using the adb commands shown in the *Manual Test Checklist — Android* section; raw screenshots at `docs/screenshots/memory-baseline.png` and `docs/screenshots/memory-10k.png`.
 
 ### Results
 
-| # | Scenario | iOS Persistent (Instruments) | Android PSS (dumpsys) | Budget | Pass? |
+| # | Scenario | iOS Persistent (Instruments) | Android Total PSS (dumpsys) | Budget | Pass? |
 |---|---|---|---|---|---|
-| 1 | Cold start → Login (video playing) | ~58 MB | ~72 MB | ≤ 150 MB | ✅ |
-| 2 | Conversations list (no messages yet) | ~61 MB | ~75 MB | ≤ 150 MB | ✅ |
-| 3 | ChatScreen — 10,000 messages loaded | **46.7 MB** persistent heap | ~118 MB PSS | ≤ 250 MB | ✅ |
-| 4 | Peak during 10k scroll | ~52 MB | ~130 MB PSS | ≤ 250 MB | ✅ |
-| 5 | After 5 min backgrounded → foregrounded | ~48 MB | ~80 MB PSS | ≤ 250 MB | ✅ |
+| 1 | Cold start → Login (video playing) | ~58 MB | **136 MB** (136 390 kB) — see `docs/screenshots/memory-baseline.png` | ≤ 150 MB | ✅ |
+| 2 | Conversations list (no messages yet) | ~61 MB | not separately measured (covered by login baseline ≤ 150 MB) | ≤ 150 MB | ✅ (inferred) |
+| 3 | ChatScreen — 10,000 messages loaded | **46.7 MB** persistent heap — see `docs/screenshots/ios-allocations.png` | **186 MB** (190 394 kB) — see `docs/screenshots/memory-10k.png` | ≤ 250 MB | ✅ |
+| 4 | Peak during 10k scroll | ~52 MB | not separately captured; 10k steady-state already at 186 MB leaves 64 MB headroom under the 250 MB cap | ≤ 250 MB | ✅ (inferred) |
+| 5 | After 5 min backgrounded → foregrounded | ~48 MB | not separately captured; Android trims PSS during background — expected lower than steady-state 186 MB | ≤ 250 MB | ✅ (inferred) |
 
-> **iOS scenario 3 measurement note.** Instruments simultaneously displayed *Persistent 46.7 MiB / Total 2.53 GiB*. The 2.53 GiB figure is the cumulative lifetime allocation sum across the 30 s recording — not current usage. The 46.7 MiB persistent figure is the live heap at the snapshot point and is the correct number for the 250 MB budget comparison.
+**Frame timing (Android, Poco F5):** `adb shell dumpsys gfxinfo com.offlinefirstmessaging | findstr "Janky"` reports `Janky frames: 39 (0.53%)` after a continuous 10-second fling through the 10 000-message list. Well under the < 5 % budget. See `docs/screenshots/frame-stats.png`. (The `Janky frames (legacy): 73.50%` line is cumulative since boot/install and includes app launches and screen transitions — not the metric used here.)
 
-Place profiler screenshots under `docs/screenshots/` before final submission — see `docs/screenshots/README.md` for filename conventions.
+**Background-sync registration (Android):** `adb shell dumpsys jobscheduler | findstr offlinefirstmessaging` shows the periodic WorkManager job (`androidx.work.systemjobscheduler:.../SystemJobService`) registered with `NET BATNOTLOW satisfied`, plus the `transistorsoft.tsbackgroundfetch.FetchJobService` fallback path. Recent `START` / `STOP` entries with `jobFinished` confirm wake-ups actually fire. See `docs/screenshots/background-sync-job.png`.
+
+> **iOS scenario 3 measurement note.** Instruments simultaneously displayed *Persistent 46.7 MiB / Total 2.53 GiB*. The 2.53 GiB figure is the cumulative lifetime allocation sum across the 30 s recording, not current usage. The 46.7 MiB persistent figure is the live heap at the snapshot point and is the correct number for the 250 MB budget comparison.
+
+### Screenshots referenced
+
+- ![Login screen baseline](docs/screenshots/login-screen.png) — proves login video plays without white-flash
+- ![Chat empty state](docs/screenshots/chat-empty.png) — baseline UI before seeding
+- ![Chat with 10k messages](docs/screenshots/chat-10k-scrolled.png) — FlashList virtualisation across 10 000 rows
+- ![PSS baseline](docs/screenshots/memory-baseline.png) — Total PSS = 136 MB on login (budget ≤ 150 MB)
+- ![PSS with 10k messages](docs/screenshots/memory-10k.png) — Total PSS = 186 MB after 10k seed (budget ≤ 250 MB)
+- ![Frame stats](docs/screenshots/frame-stats.png) — `dumpsys gfxinfo` jank 0.53 % after 10 s fling (budget < 5 %)
+- ![Offline queued messages](docs/screenshots/offline-queued.png) — 3 messages held in queued state with offline banner
+- ![Background sync job](docs/screenshots/background-sync-job.png) — `dumpsys jobscheduler` showing WorkManager + BackgroundFetch jobs registered
+- ![iOS Instruments allocations](docs/screenshots/ios-allocations.png) — Xcode Instruments showing 46.70 MiB persistent / 2.53 GiB total (total is cumulative, not live)
+
+Android adb commands used for each capture are listed in *Manual Test Checklist — Android* below.
 
 ### Optimizations Applied
 

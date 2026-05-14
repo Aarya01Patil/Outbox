@@ -88,7 +88,7 @@ export function useMessages(options: UseMessagesOptions): UseMessagesResult {
         priority,
       });
 
-      // Prepend directly — avoids a full DB read just to show the new bubble.
+      // Prepend directly to avoid a full DB read just to show the new bubble.
       setMessages(prev => [record, ...prev]);
       setMessageCount(prev => prev + 1);
 
@@ -138,7 +138,6 @@ export function useMessages(options: UseMessagesOptions): UseMessagesResult {
         };
         applyServerAuthoritativeMessage(snapshot);
       } else {
-        // keepLocal — re-queue with local body for re-send
         retryMessage({clientId});
       }
 

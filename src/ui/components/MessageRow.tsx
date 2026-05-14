@@ -43,7 +43,7 @@ function MessageRowComponent({message, onRetry, onConflictTap}: MessageRowProps)
 
   useEffect(() => {
     if (!isNew) {
-      // Reset immediately — handles FlashList cell recycling where ref values are stale.
+      // Reset immediately so FlashList cell recycling does not leave stale ref values.
       fadeAnim.setValue(1);
       slideAnim.setValue(0);
       return;

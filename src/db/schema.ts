@@ -84,9 +84,12 @@ function addConflictMetadataColumns(db: DB): void {
   // ALTER TABLE ADD COLUMN has no IF NOT EXISTS in SQLite; trying to add a
   // column that already exists throws inside our transaction and causes a
   // migration loop on subsequent app starts.
-  const existing = new Set(
-    db.executeSync('PRAGMA table_info(messages);').rows.map(r => r.name as string),
-  );
+  const existing = new Set<string>();
+  for (const row of db.executeSync('PRAGMA table_info(messages);').rows) {
+    if (typeof row.name === 'string') {
+      existing.add(row.name);
+    }
+  }
 
   const columns: Array<{name: string; type: string}> = [
     {name: 'conflict_reason', type: 'TEXT'},

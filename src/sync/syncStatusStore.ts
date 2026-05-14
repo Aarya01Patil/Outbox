@@ -9,20 +9,20 @@ export type SyncRunSource =
 export type SyncStatusPhase = 'idle' | 'running' | 'succeeded' | 'failed' | 'timed-out';
 
 export interface SyncStatusSnapshot {
-  phase: SyncStatusPhase;
-  source: SyncRunSource | null;
-  taskId: string | null;
-  startedAt: number | null;
-  finishedAt: number | null;
-  lastSuccessAt: number | null;
-  lastFailureAt: number | null;
-  lastTimeoutAt: number | null;
-  lastErrorMessage: string | null;
-  lastSummary: SyncSummary | null;
-  runCount: number;
-  successCount: number;
-  failureCount: number;
-  timeoutCount: number;
+  readonly phase: SyncStatusPhase;
+  readonly source: SyncRunSource | null;
+  readonly taskId: string | null;
+  readonly startedAt: number | null;
+  readonly finishedAt: number | null;
+  readonly lastSuccessAt: number | null;
+  readonly lastFailureAt: number | null;
+  readonly lastTimeoutAt: number | null;
+  readonly lastErrorMessage: string | null;
+  readonly lastSummary: SyncSummary | null;
+  readonly runCount: number;
+  readonly successCount: number;
+  readonly failureCount: number;
+  readonly timeoutCount: number;
 }
 
 export interface SyncStatusStartedInput {

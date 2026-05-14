@@ -65,7 +65,6 @@ export function ChatScreen({
   });
   const connected = network.isConnected && network.isInternetReachable !== false;
 
-  // Auto-sync when coming back online
   const prevConnected = useRef(connected);
   useEffect(() => {
     if (!prevConnected.current && connected) {
@@ -164,7 +163,6 @@ export function ChatScreen({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        {/* Header — single row */}
         <View style={styles.header}>
           <Pressable
             accessibilityRole="button"
@@ -178,7 +176,6 @@ export function ChatScreen({
             <ArrowLeft color={colors.text} size={20} strokeWidth={2.2} />
           </Pressable>
 
-          {/* Avatar + name block */}
           <View style={styles.headerCenter}>
             <View style={styles.avatar}>
               <Text style={styles.avatarLetter}>
@@ -197,7 +194,7 @@ export function ChatScreen({
             </View>
           </View>
 
-          {/* Right actions — compact OfflineBanner prevents header overflow on narrow screens */}
+          {/* compact OfflineBanner prevents header overflow on narrow screens */}
           <View style={styles.headerRight}>
             <OfflineBanner isConnected={connected} compact />
             <SyncIndicator status={syncStatus} />
@@ -215,7 +212,6 @@ export function ChatScreen({
           </View>
         </View>
 
-        {/* Message List */}
         <View style={styles.listFrame}>
           {loading ? (
             <SkeletonLoader variant="chat" />
@@ -236,11 +232,10 @@ export function ChatScreen({
           )}
         </View>
 
-        {/* Composer — draft state isolated here so keystrokes don't re-render the list */}
+        {/* draft state isolated in ChatComposer so keystrokes don't re-render the list */}
         <ChatComposer busy={busy} onSend={sendMessage} />
       </KeyboardAvoidingView>
 
-      {/* Conflict Resolution Sheet */}
       <ConflictSheet
         visible={conflictSheetVisible}
         message={conflictMessage}

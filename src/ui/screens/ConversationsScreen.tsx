@@ -124,7 +124,6 @@ export function ConversationsScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View>
@@ -143,7 +142,6 @@ export function ConversationsScreen({
           </Text>
         </View>
 
-        {/* Conversation List */}
         {loading ? (
           <SkeletonLoader variant="conversations" />
         ) : (
@@ -161,7 +159,6 @@ export function ConversationsScreen({
           </View>
         )}
 
-        {/* Dev tools */}
         <View style={styles.devSection}>
           <Text style={styles.devLabel}>Developer Tools</Text>
           <Pressable

@@ -31,7 +31,6 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const [videoReady, setVideoReady] = useState(false);
 
-  // Staggered entrance animations
   const headerFade = useRef(new Animated.Value(0)).current;
   const headerSlide = useRef(new Animated.Value(20)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
@@ -49,7 +48,6 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
   }, []);
 
   useEffect(() => {
-    // Staggered entrance
     Animated.stagger(120, [
       Animated.parallel([
         Animated.timing(headerFade, {
@@ -94,7 +92,6 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
       ]),
     ]).start();
 
-    // Continuous gentle pulse on the CTA
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -126,7 +123,6 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {/* Video hero */}
           <View style={styles.mediaFrame}>
             <Video
               source={loginVideoSource}
@@ -145,7 +141,6 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
             {!videoReady ? (
               <Image source={loginPoster} resizeMode="cover" style={styles.poster} />
             ) : null}
-            {/* Gradient overlay */}
             <View style={styles.mediaOverlayTop} />
             <View style={styles.mediaOverlayBottom} />
             <MotionPreview />
@@ -156,7 +151,6 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
             </View>
           </View>
 
-          {/* Content panel */}
           <Animated.View
             style={[
               styles.panel,
@@ -175,7 +169,6 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
             </Text>
           </Animated.View>
 
-          {/* Feature cards */}
           <Animated.View
             style={[
               styles.featureList,
@@ -208,7 +201,6 @@ export function LoginScreen({onEnter}: LoginScreenProps): React.JSX.Element {
             />
           </Animated.View>
 
-          {/* CTA */}
           <Animated.View
             style={[
               styles.ctaContainer,
@@ -416,7 +408,6 @@ const styles = StyleSheet.create({
     left: 0,
     height: 80,
     backgroundColor: 'transparent',
-    // Simulated top gradient via opacity
     opacity: 0.6,
   },
   mediaOverlayBottom: {
